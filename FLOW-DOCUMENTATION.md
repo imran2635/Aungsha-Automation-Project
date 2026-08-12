@@ -4,6 +4,16 @@ This document is based directly on the current `tests/*.spec.js` files and the
 commands defined in `package.json`. The repository currently contains **11
 Playwright test files**, with **one Playwright test case per file**.
 
+## Flow Execution Videos
+
+Recorded browser executions for the automated flows are available here:
+
+**[Watch All Aungsha Automation Flow Videos](https://drive.google.com/drive/folders/1K-MJ-Z_h0eJSgmpR3jANx9NWWAkXFc15?usp=sharing)**
+
+Google Drive access must be set to **Anyone with the link** and the role must
+be **Viewer**. This allows GitHub visitors and project stakeholders to watch
+the videos without signing in or requesting access.
+
 ## Executive Summary
 
 | Report item | Result |

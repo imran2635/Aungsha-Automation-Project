@@ -1,5 +1,17 @@
 # Aungsha Automation Test
 
+End-to-end Playwright automation for the Aungsha real estate FinTech platform.
+
+## Flow Demo Videos
+
+Watch the recorded executions of all automated flows in the public Google
+Drive folder:
+
+**[View All Automation Flow Videos](https://drive.google.com/drive/folders/1K-MJ-Z_h0eJSgmpR3jANx9NWWAkXFc15?usp=sharing)**
+
+The folder should be shared with **Anyone with the link** as a **Viewer** so
+visitors can watch the videos without requesting access.
+
 ## Run
 
 ```powershell
