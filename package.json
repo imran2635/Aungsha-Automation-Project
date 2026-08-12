@@ -1,0 +1,22 @@
+{
+  "name": "aungsha-signup-playwright",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "signup": "playwright test tests/signup.spec.js --headed",
+    "login": "playwright test tests/login.spec.js --headed",
+    "project-details": "playwright test tests/project-details.spec.js --headed",
+    "buy-flow": "playwright test tests/buy-flow.spec.js --headed",
+    "aungsha-sell-flow": "playwright test tests/project-buy-sell-to-aungsha.spec.js --headed",
+    "marketplace-flow": "playwright test tests/project-buy-sell-to-marketplace.spec.js --headed",
+    "marketplace-buy-flow": "playwright test tests/project-buy-from-marketplace.spec.js --headed",
+    "holding-details": "playwright test tests/holding-details.spec.js --headed",
+    "referral-flow": "playwright test tests/referral-rewards-flow.spec.js --headed",
+    "support-ticket-flow": "playwright test tests/customer-support-ticket-flow.spec.js --headed",
+    "withdrawal-flow": "playwright test tests/withdrawal-flow.spec.js --headed",
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.54.2"
+  }
+}
