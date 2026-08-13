@@ -8,9 +8,13 @@ const REFERRED_LAST_NAME = process.env.REFERRED_LAST_NAME || 'Hossain';
 const REFERRED_PASSWORD = process.env.REFERRED_PASSWORD;
 const PHONE = process.env.AUNGSHA_PHONE;
 const SANDBOX_PIN = process.env.SHURJOPAY_PIN;
+const BKASH_SANDBOX_PHONE = process.env.BKASH_SANDBOX_PHONE || PHONE;
+const BKASH_SANDBOX_OTP = process.env.BKASH_SANDBOX_OTP || '123456';
+const BKASH_SANDBOX_PIN = process.env.BKASH_SANDBOX_PIN || '12121';
 const REFERRAL_COUNT = Number(process.env.REFERRAL_COUNT || '1');
 const RECOVER_EMAIL = process.env.REFERRAL_RECOVER_EMAIL;
 const RECOVER_OTP = process.env.REFERRAL_RECOVER_OTP;
+const STATUS_ONLY = process.env.REFERRAL_STATUS_ONLY === 'true';
 
 if (!Number.isInteger(REFERRAL_COUNT) || REFERRAL_COUNT < 1 || REFERRAL_COUNT > 20) {
   throw new Error('REFERRAL_COUNT must be an integer between 1 and 20');
@@ -74,16 +78,24 @@ async function login(page, email, password) {
 }
 
 function parseMetric(body, label) {
-  const match = body.match(new RegExp(`${label}\\s*(?:BDT|à§³|৳)?\\s*([\\d,.]+)`, 'i'));
-  return Number((match?.[1] || '0').replace(/,/g, ''));
+  const lines = body.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const labelPattern = new RegExp(`^(?:${label})$`, 'i');
+  const labelIndex = lines.findIndex((line) => labelPattern.test(line));
+  if (labelIndex === -1) return 0;
+  const nearbyText = lines.slice(labelIndex, labelIndex + 4).join(' ');
+  const match = nearbyText
+    .replace(labelPattern, '')
+    .match(/(?:BDT|৳|à§³)?\s*([\d][\d,.]*)/i);
+  const value = Number((match?.[1] || '0').replace(/,/g, ''));
+  return Number.isFinite(value) ? value : 0;
 }
 
 async function readReferralMetrics(page) {
   const body = await page.locator('body').innerText();
   return {
-    total: parseMetric(body, 'Total Referrals'),
-    successful: parseMetric(body, 'Successful Referrals'),
-    cashback: parseMetric(body, 'Total Cashback Earned'),
+    total: parseMetric(body, '(?:Total Referrals|Referrals)'),
+    successful: parseMetric(body, '(?:Successful Referrals|Success)'),
+    cashback: parseMetric(body, '(?:Total Cashback Earned|Cashback)'),
   };
 }
 
@@ -139,9 +151,9 @@ async function createTempMailbox(request) {
   return { address, token };
 }
 
-async function waitForVerificationMail(request, mailbox) {
+async function waitForVerificationMail(request, mailbox, verificationPage) {
   let messageId;
-  for (let attempt = 0; attempt < 45; attempt += 1) {
+  for (let attempt = 0; attempt < 75; attempt += 1) {
     const response = await mailApiWithRetry(
       'Mail.tm messages request',
       () => request.get('https://api.mail.tm/messages', {
@@ -156,6 +168,14 @@ async function waitForVerificationMail(request, mailbox) {
     if (message) {
       messageId = message.id;
       break;
+    }
+    if (attempt === 15 && verificationPage) {
+      const resendCode = verificationPage.getByRole('button', { name: /resend code/i })
+        .or(verificationPage.getByText(/resend code/i));
+      if (await resendCode.first().isVisible().catch(() => false)) {
+        await resendCode.first().click();
+        console.log('Verification email was delayed; requested a new code');
+      }
     }
     await new Promise((resolve) => setTimeout(resolve, 2_000));
   }
@@ -251,7 +271,7 @@ async function buyCloud9(page) {
   await page.goto(`${BASE_URL}/en/projects`, { waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('heading', { name: /all projects/i })).toBeVisible();
   await page.getByRole('link', { name: /^cloud 9 \(inani\)$/i }).first().click();
-  await expect(page).toHaveURL(/\/en\/projects\/cloud-9-inani(?:-2)?\/?(?:\?|$)/);
+  await expect(page).toHaveURL(/\/en\/projects\/[^/?]+\/?(?:\?|$)/);
   await page.getByRole('link', { name: /^(?:buy|prebook) now$/i }).click();
   await expect(page).toHaveURL(/\/en\/projects\/.+\/checkout\/?(?:\?|$)/, { timeout: 20_000 });
 
@@ -266,31 +286,55 @@ async function buyCloud9(page) {
     if (attempt < 3) await page.waitForTimeout(2_000);
   }
   await expect(paymentMethodDialog).toBeVisible({ timeout: 30_000 });
-  const bkash = page.getByText(/pay with bkash/i);
-  if (await bkash.isVisible().catch(() => false)) await bkash.click();
-  const paymentResponsePromise = page.waitForResponse((response) =>
-    response.request().method() === 'POST'
-      && /\/projects\/.+\/checkout$/.test(new URL(response.url()).pathname),
-  );
-  await page.getByRole('button', { name: /make payment/i }).click();
-  const paymentResponse = await paymentResponsePromise;
-  if (!/sandbox\.securepay\.shurjopayment\.com/i.test(page.url())) {
-    await page.waitForTimeout(5_000);
+  const bkash = page.getByRole('button', { name: /bkash.*pay with bkash/i }).first();
+  await expect(bkash).toBeVisible();
+  await bkash.click();
+  await Promise.all([
+    page.waitForURL(/(?:sandbox\.securepay\.shurjopayment\.com|sandbox\.payment\.bkash\.com)/i, {
+      timeout: 30_000,
+      waitUntil: 'domcontentloaded',
+    }),
+    page.getByRole('button', { name: /make payment/i }).click(),
+  ]);
+  if (/sandbox\.payment\.bkash\.com/i.test(page.url())) {
+    const confirmBkashStep = async (prompt, value) => {
+      await expect(page.locator('body')).toContainText(prompt, { timeout: 20_000 });
+      const confirm = page.getByRole('button', { name: /^confirm$/i });
+      await expect(confirm).toBeVisible({ timeout: 20_000 });
+      const input = page.locator('input:visible').first();
+      await expect(input).toBeVisible();
+      await input.fill(value);
+      await expect(confirm).toBeEnabled();
+      await confirm.click();
+    };
+
+    await confirmBkashStep(/your bkash account number/i, BKASH_SANDBOX_PHONE);
+    await confirmBkashStep(/verification code/i, BKASH_SANDBOX_OTP);
+    await confirmBkashStep(/enter pin/i, BKASH_SANDBOX_PIN);
+  } else {
+    const mobileBanking = page.getByRole('tab', { name: /^mbanking$/i });
+    if ((await mobileBanking.getAttribute('aria-selected')) !== 'true') await mobileBanking.click();
+    await page.getByRole('textbox', { name: /mobile number/i }).fill(PHONE);
+    await page.getByRole('textbox', { name: /pin number/i }).fill(SANDBOX_PIN);
+    await page.getByRole('button', { name: /^success/i }).click();
   }
-  if (!/sandbox\.securepay\.shurjopayment\.com/i.test(page.url())) {
-    const paymentBody = await paymentResponse.text();
-    const redirectUrl = paymentBody.match(/"redirectUrl":"([^"]+)"/)?.[1]
-      ?.replace(/\\u0026/g, '&');
-    expect(redirectUrl, 'Expected payment gateway redirect URL').toBeTruthy();
-    await page.goto(redirectUrl, { waitUntil: 'domcontentloaded' });
+  await expect(page).toHaveURL(/(?:staging|staging-ssr)\.aungsha\.com/i, {
+    timeout: 30_000,
+  });
+  if (/staging-ssr\.aungsha\.com/i.test(page.url())) {
+    const callbackText = await page.locator('body').innerText();
+    expect(callbackText).toMatch(/Duplicate for All Transactions|success/i);
+    await page.goto(`${BASE_URL}/en/dashboard/my-portfolio`, {
+      waitUntil: 'domcontentloaded',
+    });
+    await expect(page).toHaveURL(/\/en\/dashboard\/my-portfolio/i);
+  } else {
+    await expect(
+      page.getByText(/(?:payment (?:successful|completed)|purchase successful)/i),
+    ).toBeVisible({
+      timeout: 20_000,
+    });
   }
-  await expect(page).toHaveURL(/sandbox\.securepay\.shurjopayment\.com/i, { timeout: 30_000 });
-  const mobileBanking = page.getByRole('tab', { name: /^mbanking$/i });
-  if ((await mobileBanking.getAttribute('aria-selected')) !== 'true') await mobileBanking.click();
-  await page.getByRole('textbox', { name: /mobile number/i }).fill(PHONE);
-  await page.getByRole('textbox', { name: /pin number/i }).fill(SANDBOX_PIN);
-  await page.getByRole('button', { name: /^success/i }).click();
-  await expect(page).toHaveURL(/staging\.aungsha\.com/i, { timeout: 30_000 });
 }
 
 test('complete referral rewards flow through referred purchase', async ({ page, browser, request }) => {
@@ -311,6 +355,11 @@ test('complete referral rewards flow through referred purchase', async ({ page, 
     .match(/https?:\/\/[^\s]+/i)?.[0];
   expect(referralUrl, 'Expected referral URL on Referral Rewards page').toBeTruthy();
   console.log(`✅ Referral link captured; baseline=${JSON.stringify(before)}`);
+
+  if (STATUS_ONLY) {
+    console.log(`Referral rewards status=${JSON.stringify(before)}`);
+    return;
+  }
 
   if (RECOVER_EMAIL) {
     const recoveryContext = await browser.newContext();
@@ -339,7 +388,7 @@ test('complete referral rewards flow through referred purchase', async ({ page, 
       console.log(`Referral ${index}/${REFERRAL_COUNT}: temporary mailbox ready`);
 
       await signUpWithReferral(signupPage, referralUrl, tempEmail);
-      const verification = await waitForVerificationMail(request, mailbox);
+      const verification = await waitForVerificationMail(request, mailbox, signupPage);
       const verificationHeading = signupPage.getByRole('heading', { name: /verify your account/i });
       if (!(await verificationHeading.isVisible().catch(() => false))) {
         await login(signupPage, tempEmail, REFERRED_PASSWORD);

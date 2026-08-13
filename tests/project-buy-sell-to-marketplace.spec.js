@@ -4,8 +4,27 @@ const EMAIL = process.env.AUNGSHA_EMAIL;
 const PASSWORD = process.env.AUNGSHA_PASSWORD;
 const PHONE = process.env.AUNGSHA_PHONE;
 const SANDBOX_PIN = process.env.SHURJOPAY_PIN;
+const BKASH_SANDBOX_PHONE = process.env.BKASH_SANDBOX_PHONE || PHONE;
+const BKASH_SANDBOX_OTP = process.env.BKASH_SANDBOX_OTP || '123456';
+const BKASH_SANDBOX_PIN = process.env.BKASH_SANDBOX_PIN || '12121';
 const ASKING_PRICE = process.env.MARKETPLACE_ASKING_PRICE || '1500';
 const FORMATTED_ASKING_PRICE = Number(ASKING_PRICE).toLocaleString('en-US');
+const RESUME_AFTER_PURCHASE = process.env.MARKETPLACE_RESUME_AFTER_PURCHASE === 'true';
+
+async function gotoWithRetry(page, url) {
+  let lastError;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      await page.goto(url, { waitUntil: 'domcontentloaded' });
+      return;
+    } catch (error) {
+      lastError = error;
+      if (!/ERR_ABORTED/i.test(String(error)) || attempt === 3) throw error;
+      await page.waitForTimeout(1_500);
+    }
+  }
+  throw lastError;
+}
 
 test('Project buy sell to market place', async ({ page }) => {
   test.setTimeout(240_000);
@@ -36,6 +55,7 @@ test('Project buy sell to market place', async ({ page }) => {
   });
   console.log('[PASSED] Login successful');
 
+  if (!RESUME_AFTER_PURCHASE) {
   await page.goto('/en/projects', { waitUntil: 'domcontentloaded' });
   const cloud9Project = page
     .getByRole('link', { name: /^cloud 9 \(inani\)$/i })
@@ -65,34 +85,55 @@ test('Project buy sell to market place', async ({ page }) => {
   await expect(phoneInput).toHaveValue(PHONE);
   console.log('[PASSED] Checkout information completed');
 
-  await page.getByRole('button', { name: /^buy$/i }).click();
-  await expect(page.getByText(/select payment method/i)).toBeVisible();
+  const buyButton = page.getByRole('button', { name: /^buy$/i });
+  const paymentMethodDialog = page.getByText(/select payment method/i);
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    await buyButton.click();
+    if (await paymentMethodDialog.isVisible({ timeout: 15_000 }).catch(() => false)) break;
+    if (attempt < 3) await page.waitForTimeout(2_000);
+  }
+  await expect(paymentMethodDialog).toBeVisible({ timeout: 30_000 });
   const bkashOption = page.getByText(/pay with bkash/i);
   if (await bkashOption.isVisible().catch(() => false)) {
     await bkashOption.click();
   }
   await page.getByRole('button', { name: /make payment/i }).click();
 
-  await expect(page).toHaveURL(/sandbox\.securepay\.shurjopayment\.com/i, {
-    timeout: 30_000,
-  });
+  await expect(page).toHaveURL(
+    /(?:sandbox\.securepay\.shurjopayment\.com|sandbox\.payment\.bkash\.com)/i,
+    { timeout: 30_000 },
+  );
   console.log('[PASSED] ShurjoPay sandbox opened');
 
-  const mobileBankingTab = page.getByRole('tab', { name: /^mbanking$/i });
-  if ((await mobileBankingTab.getAttribute('aria-selected')) !== 'true') {
-    await mobileBankingTab.click();
+  if (/sandbox\.payment\.bkash\.com/i.test(page.url())) {
+    const confirmBkashStep = async (prompt, value) => {
+      await expect(page.locator('body')).toContainText(prompt, { timeout: 20_000 });
+      await page.locator('input:visible').first().fill(value);
+      const confirm = page.getByRole('button', { name: /^confirm$/i });
+      await expect(confirm).toBeEnabled();
+      await confirm.click();
+    };
+    await confirmBkashStep(/your bkash account number/i, BKASH_SANDBOX_PHONE);
+    await confirmBkashStep(/verification code/i, BKASH_SANDBOX_OTP);
+    await confirmBkashStep(/enter pin/i, BKASH_SANDBOX_PIN);
+  } else {
+    const mobileBankingTab = page.getByRole('tab', { name: /^mbanking$/i });
+    if ((await mobileBankingTab.getAttribute('aria-selected')) !== 'true') {
+      await mobileBankingTab.click();
+    }
+    await page.getByRole('textbox', { name: /mobile number/i }).fill(PHONE);
+    await page.getByRole('textbox', { name: /pin number/i }).fill(SANDBOX_PIN);
+    await page.getByRole('button', { name: /^success/i }).click();
   }
-  await page.getByRole('textbox', { name: /mobile number/i }).fill(PHONE);
-  await page.getByRole('textbox', { name: /pin number/i }).fill(SANDBOX_PIN);
-  await page.getByRole('button', { name: /^success/i }).click();
   await expect(page).toHaveURL(/staging\.aungsha\.com/i, {
     timeout: 30_000,
   });
   console.log('[PASSED] One Cloud 9 unit purchased');
+  } else {
+    console.log('[PASSED] Existing purchased unit reused; duplicate purchase skipped');
+  }
 
-  await page.goto('/en/dashboard/my-portfolio', {
-    waitUntil: 'domcontentloaded',
-  });
+  await gotoWithRetry(page, '/en/dashboard/my-portfolio');
   const cloud9Card = page
     .locator('article')
     .filter({ hasText: /^Cloud 9 \(Inani\)/i });

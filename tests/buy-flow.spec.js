@@ -4,6 +4,9 @@ const EMAIL = process.env.AUNGSHA_EMAIL;
 const PASSWORD = process.env.AUNGSHA_PASSWORD;
 const PHONE = process.env.AUNGSHA_PHONE;
 const SANDBOX_PIN = process.env.SHURJOPAY_PIN;
+const BKASH_SANDBOX_PHONE = process.env.BKASH_SANDBOX_PHONE || PHONE;
+const BKASH_SANDBOX_OTP = process.env.BKASH_SANDBOX_OTP || '123456';
+const BKASH_SANDBOX_PIN = process.env.BKASH_SANDBOX_PIN || '12121';
 
 test('complete the Cloud 9 sandbox buy flow', async ({ page }) => {
   test.setTimeout(120_000);
@@ -76,19 +79,38 @@ test('complete the Cloud 9 sandbox buy flow', async ({ page }) => {
   }
   await page.getByRole('button', { name: /make payment/i }).click();
 
-  await expect(page).toHaveURL(/sandbox\.securepay\.shurjopayment\.com/i, {
+  await expect(page).toHaveURL(
+    /(?:sandbox\.securepay\.shurjopayment\.com|sandbox\.payment\.bkash\.com)/i,
+    {
     timeout: 30_000,
-  });
+    },
+  );
   console.log('✅ ShurjoPay Sandbox opened: PASSED');
 
-  const mobileBankingTab = page.getByRole('tab', { name: /^mbanking$/i });
-  if ((await mobileBankingTab.getAttribute('aria-selected')) !== 'true') {
-    await mobileBankingTab.click();
+  if (/sandbox\.payment\.bkash\.com/i.test(page.url())) {
+    const confirmBkashStep = async (prompt, value) => {
+      await expect(page.locator('body')).toContainText(prompt, { timeout: 20_000 });
+      const confirm = page.getByRole('button', { name: /^confirm$/i });
+      await expect(confirm).toBeVisible({ timeout: 20_000 });
+      const input = page.locator('input:visible').first();
+      await input.fill(value);
+      await expect(confirm).toBeEnabled();
+      await confirm.click();
+    };
+
+    await confirmBkashStep(/your bkash account number/i, BKASH_SANDBOX_PHONE);
+    await confirmBkashStep(/verification code/i, BKASH_SANDBOX_OTP);
+    await confirmBkashStep(/enter pin/i, BKASH_SANDBOX_PIN);
+  } else {
+    const mobileBankingTab = page.getByRole('tab', { name: /^mbanking$/i });
+    if ((await mobileBankingTab.getAttribute('aria-selected')) !== 'true') {
+      await mobileBankingTab.click();
+    }
+    await page.getByRole('textbox', { name: /mobile number/i }).fill(PHONE);
+    await page.getByRole('textbox', { name: /pin number/i }).fill(SANDBOX_PIN);
+    await expect(page.getByRole('button', { name: /^success/i })).toBeEnabled();
+    await page.getByRole('button', { name: /^success/i }).click();
   }
-  await page.getByRole('textbox', { name: /mobile number/i }).fill(PHONE);
-  await page.getByRole('textbox', { name: /pin number/i }).fill(SANDBOX_PIN);
-  await expect(page.getByRole('button', { name: /^success/i })).toBeEnabled();
-  await page.getByRole('button', { name: /^success/i }).click();
 
   await expect(page).toHaveURL(/staging\.aungsha\.com/i, {
     timeout: 30_000,
