@@ -1,120 +1,79 @@
-const { test, expect } = require('@playwright/test');
+const { test } = require('@playwright/test');
+const allure = require('allure-js-commons');
+const { AuthPage } = require('../pages/AuthPage');
+const { ProjectsPage } = require('../pages/ProjectsPage');
+const { Cloud9CheckoutPage } = require('../pages/Cloud9CheckoutPage');
 
 const EMAIL = process.env.AUNGSHA_EMAIL;
 const PASSWORD = process.env.AUNGSHA_PASSWORD;
 const PHONE = process.env.AUNGSHA_PHONE;
-const SANDBOX_PIN = process.env.SHURJOPAY_PIN;
-const BKASH_SANDBOX_PHONE = process.env.BKASH_SANDBOX_PHONE || PHONE;
-const BKASH_SANDBOX_OTP = process.env.BKASH_SANDBOX_OTP || '123456';
-const BKASH_SANDBOX_PIN = process.env.BKASH_SANDBOX_PIN || '12121';
+const SANDBOX_PIN = process.env.SHURJOPAY_PIN || '1234';
 
-test('complete the Cloud 9 sandbox buy flow', async ({ page }) => {
-  test.setTimeout(120_000);
+test.describe('Purchase — Cloud 9 Sandbox Buy Flow', () => {
+  test('complete the Cloud 9 sandbox buy flow', async ({ page }) => {
+    test.setTimeout(120_000);
 
-  await page.goto('/en/sign-in', { waitUntil: 'domcontentloaded' });
-  await expect(page).toHaveURL(/\/en\/sign-in(?:\?|$)/);
-  console.log('✅ Sign-in page opened: PASSED');
+    await allure.epic('Aungsha Staging');
+    await allure.feature('Project Purchase');
+    await allure.story('Buy Cloud 9 via ShurjoPay sandbox');
+    await allure.severity('critical');
+    await allure.owner('QA Automation');
+    await allure.tags('buy', 'shurjopay', 'cloud9', 'staging');
+    await allure.description(
+      'Full Cloud 9 buy flow: login → project details → checkout → digital payment → ShurjoPay sandbox success.'
+    );
 
-  await page.waitForTimeout(1_500);
-  const emailInput = page.getByPlaceholder(/enter your email address/i);
-  if (!(await emailInput.isVisible().catch(() => false))) {
-    const emailTab = page.getByRole('tab', { name: /^email$/i });
-    await emailTab.click();
-    await expect(emailTab).toHaveAttribute('aria-selected', 'true');
-    await expect(emailInput).toBeVisible();
-  }
+    const auth = new AuthPage(page);
+    const projects = new ProjectsPage(page);
+    const checkout = new Cloud9CheckoutPage(page, undefined, { phone: PHONE, sandboxPin: SANDBOX_PIN });
 
-  const passwordInput = page.getByPlaceholder(/enter your password/i);
-  await emailInput.fill(EMAIL);
-  await passwordInput.fill(PASSWORD);
-  await expect(emailInput).toHaveValue(EMAIL);
-  await expect(passwordInput).toHaveValue(PASSWORD);
-  await page.getByRole('button', { name: /^continue$/i }).click();
-  await expect(page).not.toHaveURL(/\/en\/sign-in(?:\?|$)/, {
-    timeout: 20_000,
+    await allure.step('1. Open sign-in page', async () => {
+      await auth.openSignIn();
+      console.log('✅ Sign-in page opened: PASSED');
+    });
+
+    await allure.step('2. Login with valid credentials', async () => {
+      await auth.handleCookieConsent();
+      await auth.fillCredentials(EMAIL, PASSWORD);
+      await auth.submitLogin();
+      console.log('✅ Login successful: PASSED');
+    });
+
+    await allure.step('3. Open Projects page', async () => {
+      await projects.open();
+      console.log('✅ Projects page opened: PASSED');
+    });
+
+    await allure.step('4. Open Cloud 9 details', async () => {
+      await projects.openCloud9Details();
+      console.log('✅ Cloud 9 details page opened: PASSED');
+    });
+
+    await allure.step('5. Open checkout page', async () => {
+      await checkout.openCheckoutFromDetails();
+      console.log('✅ Checkout page opened: PASSED');
+    });
+
+    await allure.step('6. Complete checkout information', async () => {
+      await checkout.fillCheckoutInfo();
+      console.log('✅ Checkout information completed: PASSED');
+    });
+
+    await allure.step('7. Open payment method drawer', async () => {
+      await checkout.openPaymentDrawer();
+      console.log('✅ Payment method drawer opened: PASSED');
+    });
+
+    await allure.step('8. Select Make Digital Payment', async () => {
+      const selected = await checkout.selectDigitalPayment();
+      if (selected) console.log('✅ Make Digital Payment selected: PASSED');
+    });
+
+    await allure.step('9–11. Complete ShurjoPay sandbox payment', async () => {
+      await checkout.completeShurjoPay();
+      console.log('✅ ShurjoPay Sandbox opened: PASSED');
+      console.log('✅ ShurjoPay sandbox payment successful: PASSED');
+      console.log('✅ Full project buy flow completed: PASSED');
+    });
   });
-  console.log('✅ Login successful: PASSED');
-
-  await page.goto('/en/projects', { waitUntil: 'domcontentloaded' });
-  await expect(page.getByRole('heading', { name: /all projects/i })).toBeVisible();
-  console.log('✅ Projects page opened: PASSED');
-
-  const cloud9Link = page
-    .getByRole('link', { name: /^cloud 9 \(inani\)$/i })
-    .first();
-  await expect(cloud9Link).toBeVisible();
-  await cloud9Link.click();
-  await expect(page).toHaveURL(/\/en\/projects\/[^/]+\/?(?:\?|$)/);
-  console.log('✅ Cloud 9 details page opened: PASSED');
-
-  const buyNowLink = page.getByRole('link', {
-    name: /^(?:buy|prebook) now$/i,
-  });
-  await expect(buyNowLink).toBeVisible();
-  await buyNowLink.click();
-  await expect(page).toHaveURL(/\/en\/projects\/.+\/checkout\/?(?:\?|$)/, {
-    timeout: 20_000,
-  });
-  console.log('✅ Checkout page opened: PASSED');
-
-  const withoutNominee = page.getByRole('button', {
-    name: /continue without nominee/i,
-  });
-  if (await withoutNominee.isVisible().catch(() => false)) {
-    await withoutNominee.click();
-  }
-
-  const phoneInput = page.getByPlaceholder(/enter your phone number/i);
-  await phoneInput.fill(PHONE);
-  await expect(phoneInput).toHaveValue(PHONE);
-  console.log('✅ Checkout information completed: PASSED');
-
-  await page.getByRole('button', { name: /^buy$/i }).click();
-  await expect(page.getByText(/select payment method/i)).toBeVisible();
-  console.log('✅ Payment method drawer opened: PASSED');
-
-  const bkashOption = page.getByText(/pay with bkash/i);
-  if (await bkashOption.isVisible().catch(() => false)) {
-    await bkashOption.click();
-  }
-  await page.getByRole('button', { name: /make payment/i }).click();
-
-  await expect(page).toHaveURL(
-    /(?:sandbox\.securepay\.shurjopayment\.com|sandbox\.payment\.bkash\.com)/i,
-    {
-    timeout: 30_000,
-    },
-  );
-  console.log('✅ ShurjoPay Sandbox opened: PASSED');
-
-  if (/sandbox\.payment\.bkash\.com/i.test(page.url())) {
-    const confirmBkashStep = async (prompt, value) => {
-      await expect(page.locator('body')).toContainText(prompt, { timeout: 20_000 });
-      const confirm = page.getByRole('button', { name: /^confirm$/i });
-      await expect(confirm).toBeVisible({ timeout: 20_000 });
-      const input = page.locator('input:visible').first();
-      await input.fill(value);
-      await expect(confirm).toBeEnabled();
-      await confirm.click();
-    };
-
-    await confirmBkashStep(/your bkash account number/i, BKASH_SANDBOX_PHONE);
-    await confirmBkashStep(/verification code/i, BKASH_SANDBOX_OTP);
-    await confirmBkashStep(/enter pin/i, BKASH_SANDBOX_PIN);
-  } else {
-    const mobileBankingTab = page.getByRole('tab', { name: /^mbanking$/i });
-    if ((await mobileBankingTab.getAttribute('aria-selected')) !== 'true') {
-      await mobileBankingTab.click();
-    }
-    await page.getByRole('textbox', { name: /mobile number/i }).fill(PHONE);
-    await page.getByRole('textbox', { name: /pin number/i }).fill(SANDBOX_PIN);
-    await expect(page.getByRole('button', { name: /^success/i })).toBeEnabled();
-    await page.getByRole('button', { name: /^success/i }).click();
-  }
-
-  await expect(page).toHaveURL(/staging\.aungsha\.com/i, {
-    timeout: 30_000,
-  });
-  console.log('✅ Sandbox payment successful: PASSED');
-  console.log('✅ Full project buy flow completed: PASSED');
 });

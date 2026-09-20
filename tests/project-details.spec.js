@@ -1,49 +1,46 @@
-const { test, expect } = require('@playwright/test');
+const { test } = require('@playwright/test');
+const allure = require('allure-js-commons');
+const { AuthPage } = require('../pages/AuthPage');
+const { ProjectsPage } = require('../pages/ProjectsPage');
 
 const EMAIL = process.env.AUNGSHA_EMAIL;
 const PASSWORD = process.env.AUNGSHA_PASSWORD;
 
-test('open the prebook project details page', async ({ page }) => {
-  await page.goto('/en/sign-in', { waitUntil: 'domcontentloaded' });
-  await expect(page).toHaveURL(/\/en\/sign-in(?:\?|$)/);
-  console.log('✅ Sign-in page opened: PASSED');
+test.describe('Projects — Project Details', () => {
+  test('open the prebook project details page', async ({ page }) => {
+    await allure.epic('Aungsha Staging');
+    await allure.feature('Projects');
+    await allure.story('Open Purbachal Hill City project details / checkout');
+    await allure.severity('normal');
+    await allure.owner('QA Automation');
+    await allure.tags('projects', 'details', 'staging');
+    await allure.description('Logs in and opens the Purbachal Hill City project action/checkout page.');
 
-  // Wait for React hydration; clicking a tab before this can be reset to Phone.
-  await page.waitForTimeout(1_500);
-  const emailInput = page.getByPlaceholder(/enter your email address/i);
-  if (!(await emailInput.isVisible().catch(() => false))) {
-    const emailTab = page.getByRole('tab', { name: /^email$/i });
-    await emailTab.click();
-    await expect(emailTab).toHaveAttribute('aria-selected', 'true');
-    await expect(emailInput).toBeVisible();
-  }
+    const auth = new AuthPage(page);
+    const projects = new ProjectsPage(page);
 
-  await emailInput.fill(EMAIL);
-  const passwordInput = page.getByPlaceholder(/enter your password/i);
-  await passwordInput.fill(PASSWORD);
-  await expect(emailInput).toHaveValue(EMAIL);
-  await expect(passwordInput).toHaveValue(PASSWORD);
-  await page.getByRole('button', { name: /^continue$/i }).click();
-  await expect(page).not.toHaveURL(/\/en\/sign-in(?:\?|$)/, {
-    timeout: 20_000,
+    await allure.step('1. Open sign-in page', async () => {
+      await auth.openSignIn();
+      console.log('✅ Sign-in page opened: PASSED');
+    });
+
+    await allure.step('2. Login with valid credentials', async () => {
+      await auth.handleCookieConsent();
+      await auth.fillCredentials(EMAIL, PASSWORD);
+      await auth.submitLogin();
+      console.log('✅ Login successful: PASSED');
+    });
+
+    await allure.step('3. Open Projects page', async () => {
+      await projects.open();
+      console.log('✅ Projects page opened: PASSED');
+    });
+
+    await allure.step('4. Open Purbachal Hill City checkout', async () => {
+      const href = await projects.openPurbachalCheckout();
+      await allure.parameter('projectHref', href);
+      console.log(`✅ Purbachal Hill City action link found (${href}): PASSED`);
+      console.log('✅ Purbachal Hill City checkout page opened: PASSED');
+    });
   });
-  console.log('✅ Login successful: PASSED');
-
-  await page.goto('/en/projects', { waitUntil: 'domcontentloaded' });
-  await expect(page.getByRole('heading', { name: /all projects/i })).toBeVisible();
-  console.log('✅ Projects page opened: PASSED');
-
-  const prebookLink = page.getByRole('link', { name: /^prebook$/i }).first();
-  await expect(prebookLink).toHaveAttribute(
-    'href',
-    '/en/projects/purbachal-hill-city-2/checkout',
-  );
-  console.log('✅ Prebook link found: PASSED');
-  await prebookLink.click();
-
-  await expect(page).toHaveURL(
-    /\/en\/projects\/purbachal-hill-city-2\/checkout\/?(?:\?|$)/,
-    { timeout: 20_000 },
-  );
-  console.log('✅ Prebook checkout page opened: PASSED');
 });

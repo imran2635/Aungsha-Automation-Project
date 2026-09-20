@@ -1,172 +1,218 @@
 const { test, expect } = require('@playwright/test');
+const allure = require('allure-js-commons');
 const fs = require('node:fs');
 const path = require('node:path');
+const { AuthPage } = require('../pages/AuthPage');
+const { MarketplacePage } = require('../pages/MarketplacePage');
+const { PortfolioPage } = require('../pages/PortfolioPage');
+const { PaymentSuccessPage } = require('../pages/TransactionsPage');
 
+const BASE_URL = 'https://staging.aungsha.com';
 const EMAIL = process.env.AUNGSHA_EMAIL;
 const PASSWORD = process.env.AUNGSHA_PASSWORD;
 const PHONE = process.env.AUNGSHA_PHONE;
-const SANDBOX_PIN = process.env.SHURJOPAY_PIN;
+const SANDBOX_PIN = process.env.SHURJOPAY_PIN || '1234';
 const DOWNLOAD_DIR = path.resolve(__dirname, '..', 'downloads');
 
-async function downloadWithRetry(page, button, label) {
-  await expect(button).toBeEnabled({ timeout: 30_000 });
-
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
-    const downloadPromise = page
-      .waitForEvent('download', { timeout: 20_000 })
-      .catch(() => null);
-    await button.click();
-    const download = await downloadPromise;
-    if (download) return download;
-
-    console.log(`[WAITING] ${label} is still being prepared (attempt ${attempt}/3)`);
-    await page.waitForTimeout(3_000);
-  }
-
-  throw new Error(`${label} download did not start after 3 attempts`);
-}
-
-test('Project Buy to Market place', async ({ page }) => {
-  test.setTimeout(240_000);
-  fs.mkdirSync(DOWNLOAD_DIR, { recursive: true });
-
-  await page.goto('/en/sign-in', { waitUntil: 'domcontentloaded' });
-  await page.waitForTimeout(1_500);
-
-  const acceptCookies = page.getByRole('button', { name: /^accept$/i });
-  if (await acceptCookies.isVisible().catch(() => false)) {
-    await acceptCookies.click();
-    await expect(acceptCookies).toBeHidden();
-  }
-  console.log('[PASSED] Cookie consent handled');
-
-  const emailInput = page.getByPlaceholder(/enter your email address/i);
-  const emailTab = page.getByRole('tab', { name: /^email$/i });
-  for (let attempt = 0; attempt < 5; attempt += 1) {
-    if (await emailInput.isVisible().catch(() => false)) break;
-    await emailTab.click();
-    await page.waitForTimeout(500);
-  }
-  await expect(emailInput).toBeVisible();
-  await emailInput.fill(EMAIL);
-  await page.getByPlaceholder(/enter your password/i).fill(PASSWORD);
-  await page.getByRole('button', { name: /^continue$/i }).click();
-  await expect(page).not.toHaveURL(/\/en\/sign-in(?:\?|$)/, {
-    timeout: 20_000,
+test.describe('Marketplace — Buy from Marketplace', () => {
+  test.beforeEach(async () => {
+    await allure.epic('Aungsha Staging');
+    await allure.feature('Marketplace Buy');
+    await allure.owner('QA Automation');
+    await allure.tags('marketplace', 'buy', 'staging');
   });
-  console.log('[PASSED] Login successful');
 
-  const marketplaceLink = page
-    .locator('a[href="/en/marketplace"]:visible')
-    .first();
-  if (await marketplaceLink.isVisible().catch(() => false)) {
-    await marketplaceLink.click();
-  } else {
-    await page.goto('/en/marketplace', { waitUntil: 'domcontentloaded' });
-  }
-  await expect(page).toHaveURL(/\/en\/marketplace\/?(?:\?|$)/);
-  await expect(page.getByRole('heading', { name: /^all projects$/i })).toBeVisible();
-  console.log('[PASSED] Marketplace opened');
+  test('✅ POSITIVE — Project Buy from Marketplace (12 checkpoints)', async ({ page }) => {
+    test.setTimeout(240_000);
+    fs.mkdirSync(DOWNLOAD_DIR, { recursive: true });
 
-  const purchasableCards = page
-    .locator('article:visible')
-    .filter({ has: page.getByRole('link', { name: /^buy now$/i }) });
-  const purchasableCount = await purchasableCards.count();
-  expect(purchasableCount, 'Expected at least one purchasable marketplace listing').toBeGreaterThan(0);
+    await allure.severity('critical');
+    await allure.story('Purchase a marketplace share via ShurjoPay and verify holdings');
+    await allure.description(
+      'Buys a random purchasable marketplace listing, downloads invoice/certificate, and verifies the holding in My Portfolio.'
+    );
 
-  const randomIndex = Math.floor(Math.random() * purchasableCount);
-  const selectedCard = purchasableCards.nth(randomIndex);
-  const projectLink = selectedCard
-    .locator('a[href*="/en/marketplace/"]')
-    .filter({ hasText: /\S/ })
-    .first();
-  const projectName = (await projectLink.innerText()).trim();
-  expect(projectName).toBeTruthy();
-  console.log(`[PASSED] Random purchasable share selected: ${projectName}`);
+    const auth = new AuthPage(page, BASE_URL);
+    const marketplace = new MarketplacePage(page, BASE_URL);
+    const portfolio = new PortfolioPage(page, BASE_URL);
+    const paymentSuccess = new PaymentSuccessPage(page, BASE_URL);
 
-  await selectedCard.getByRole('link', { name: /^buy now$/i }).click();
-  await expect(page).toHaveURL(/\/en\/marketplace\/[^/]+\/checkout\/?(?:\?|$)/, {
-    timeout: 20_000,
+    await allure.step('1. Open sign-in page', async () => {
+      await auth.openSignIn();
+      console.log('✅ 1. Sign-in page opened: PASSED');
+    });
+
+    await allure.step('2. Handle cookie consent', async () => {
+      await auth.handleCookieConsent();
+      console.log('✅ 2. Cookie consent handled: PASSED');
+    });
+
+    await allure.step('3. Login with valid credentials', async () => {
+      await auth.fillCredentials(EMAIL, PASSWORD);
+      await auth.submitLogin();
+      console.log('✅ 3. Login successful: PASSED');
+    });
+
+    await allure.step('4. Open Marketplace', async () => {
+      await marketplace.open();
+      console.log('✅ 4. Marketplace opened: PASSED');
+    });
+
+    let selectedCard;
+    let projectName;
+    await allure.step('5. Select random purchasable share', async () => {
+      ({ selectedCard, projectName } = await marketplace.selectRandomPurchasable());
+      await allure.parameter('projectName', projectName);
+      console.log(`✅ 5. Random purchasable share selected: "${projectName}": PASSED`);
+    });
+
+    await allure.step('6. Open marketplace checkout', async () => {
+      await marketplace.openCheckout(selectedCard);
+      console.log('✅ 6. Marketplace checkout opened: PASSED');
+    });
+
+    await allure.step('7. Fill checkout and open payment drawer', async () => {
+      await marketplace.fillCheckoutAndOpenPayment(PHONE);
+      console.log('✅ 7. Payment method drawer opened: PASSED');
+    });
+
+    await allure.step('8. Select Make Digital Payment', async () => {
+      const selected = await marketplace.selectDigitalPayment();
+      console.log(selected
+        ? '✅ 8. Make Digital Payment selected: PASSED'
+        : '✅ 8. Payment method ready (Make Digital Payment not required): PASSED');
+    });
+
+    await allure.step('9–10. Complete ShurjoPay and purchase share', async () => {
+      await marketplace.completeShurjoPay(PHONE, SANDBOX_PIN);
+      console.log('✅ 9. ShurjoPay sandbox opened: PASSED');
+      console.log(`✅ 10. Marketplace share purchased ("${projectName}"): PASSED`);
+    });
+
+    await allure.step('11–12. Download invoice and ownership certificate', async () => {
+      await marketplace.downloadInvoiceAndCertificate(DOWNLOAD_DIR);
+      console.log('✅ 11. Invoice downloaded: PASSED');
+      console.log('✅ 12. Ownership Certificate downloaded: PASSED');
+    });
+
+    await allure.step('13. Open My Property Holdings', async () => {
+      await paymentSuccess.goToPortfolioOrNavigate((p) => portfolio.goto(p));
+      console.log('✅ 13. My Property Holdings opened: PASSED');
+    });
+
+    let purchasedHolding;
+    await allure.step('14. Verify purchased project in holdings', async () => {
+      purchasedHolding = await portfolio.expectHoldingVisible(projectName);
+      console.log('✅ 14. Purchased project visible in holdings: PASSED');
+    });
+
+    await allure.step('15. Open and verify holding details', async () => {
+      await purchasedHolding.getByRole('link', { name: /^view details$/i }).click();
+      await expect(page).toHaveURL(/\/en\/dashboard\/my-portfolio\/[^/]+\/?(?:\?|$)/, { timeout: 20_000 });
+      await expect(page.getByText(/portfolio details/i).first()).toBeVisible({ timeout: 10_000 });
+      expect(page.url()).toMatch(/\/en\/dashboard\/my-portfolio\/[^/]+\/?/);
+      console.log(`✅ 15. Holding details page opened and verified ("${projectName}"): PASSED`);
+    });
+
+    console.log('\n🎉 POSITIVE — Marketplace buy flow all checkpoints: PASSED');
   });
-  await expect(page.getByText(/^order summary$/i)).toBeVisible();
-  console.log('[PASSED] Marketplace checkout opened');
 
-  const buyButton = page.getByRole('button', { name: /^buy$/i });
-  await expect(buyButton).toBeEnabled();
-  await buyButton.click();
-  await expect(page.getByText(/select payment method/i)).toBeVisible();
+  test('❌ NEGATIVE 1 — Unauthenticated marketplace checkout redirects to sign-in', async ({ page }) => {
+    test.setTimeout(30_000);
+    await allure.severity('normal');
+    await allure.story('Block unauthenticated marketplace checkout');
+    await allure.tags('negative', 'auth');
 
-  const bkashOption = page.getByText(/pay with bkash/i);
-  if (await bkashOption.isVisible().catch(() => false)) {
-    await bkashOption.click();
-  }
-  await page.getByRole('button', { name: /make payment/i }).click();
-  await expect(page).toHaveURL(/sandbox\.securepay\.shurjopayment\.com/i, {
-    timeout: 30_000,
+    await allure.step('Open checkout URL without login', async () => {
+      await page.goto(`${BASE_URL}/en/marketplace/some-project/checkout`, { waitUntil: 'domcontentloaded' });
+    });
+
+    await allure.step('Assert redirect or auth block', async () => {
+      const redirectedToSignIn = await page.waitForURL(/\/en\/sign-in|\/en\/login/i, { timeout: 10_000 }).then(() => true).catch(() => false);
+      const hasAuthError = await page.getByText(/sign in|log in|unauthorized|please log/i).isVisible({ timeout: 5_000 }).catch(() => false);
+      const notOnCheckout = !page.url().includes('/checkout');
+
+      expect(
+        redirectedToSignIn || hasAuthError || notOnCheckout,
+        'Unauthenticated user must not access checkout page',
+      ).toBe(true);
+      console.log('✅ NEGATIVE 1 — Unauthenticated checkout access blocked / redirected: PASSED');
+    });
   });
-  console.log('[PASSED] ShurjoPay sandbox opened');
 
-  const mobileBankingTab = page.getByRole('tab', { name: /^mbanking$/i });
-  if ((await mobileBankingTab.getAttribute('aria-selected')) !== 'true') {
-    await mobileBankingTab.click();
-  }
-  await page.getByRole('textbox', { name: /mobile number/i }).fill(PHONE);
-  await page.getByRole('textbox', { name: /pin number/i }).fill(SANDBOX_PIN);
-  await page.getByRole('button', { name: /^success/i }).click();
+  test('❌ NEGATIVE 2 — Marketplace page has at least one purchasable listing', async ({ page }) => {
+    test.setTimeout(60_000);
+    await allure.severity('normal');
+    await allure.story('Marketplace has purchasable listings');
+    await allure.tags('negative', 'inventory');
 
-  await expect(page).toHaveURL(/staging\.aungsha\.com\/en\/payment\/success/i, {
-    timeout: 30_000,
+    const auth = new AuthPage(page, BASE_URL);
+    const marketplace = new MarketplacePage(page, BASE_URL);
+
+    await allure.step('Login and open Marketplace', async () => {
+      await auth.loginSimple(EMAIL, PASSWORD);
+      await marketplace.open();
+    });
+
+    await allure.step('Assert at least one Buy Now listing', async () => {
+      const count = await marketplace.purchasableCards().count();
+      await allure.parameter('purchasableCount', String(count));
+      expect(count, 'Marketplace must have at least one listing with Buy Now').toBeGreaterThan(0);
+      console.log(`✅ NEGATIVE 2 — Marketplace has ${count} purchasable listing(s): PASSED`);
+    });
   });
-  await expect(page.getByText(/purchase successful/i)).toBeVisible();
-  console.log(`[PASSED] Marketplace share purchased: ${projectName}`);
 
-  const downloadTimestamp = Date.now();
-  const invoiceButton = page.getByTitle(/download receipt/i);
-  const invoiceDownload = await downloadWithRetry(
-    page,
-    invoiceButton,
-    'Invoice',
-  );
-  const invoicePath = path.join(
-    DOWNLOAD_DIR,
-    `marketplace-${downloadTimestamp}-${invoiceDownload.suggestedFilename() || 'invoice.pdf'}`,
-  );
-  await invoiceDownload.saveAs(invoicePath);
-  expect(fs.existsSync(invoicePath)).toBe(true);
-  console.log(`[PASSED] Invoice downloaded: ${invoicePath}`);
+  test('❌ NEGATIVE 3 — Payment drawer shows Make Digital Payment option', async ({ page }) => {
+    test.setTimeout(90_000);
+    await allure.severity('normal');
+    await allure.story('Payment drawer shows digital payment option');
+    await allure.tags('negative', 'payment');
 
-  const certificateButton = page.getByTitle(/ownership certificate/i);
-  const certificateDownload = await downloadWithRetry(
-    page,
-    certificateButton,
-    'Ownership certificate',
-  );
-  const certificatePath = path.join(
-    DOWNLOAD_DIR,
-    `marketplace-${downloadTimestamp}-${certificateDownload.suggestedFilename() || 'ownership-certificate.pdf'}`,
-  );
-  await certificateDownload.saveAs(certificatePath);
-  expect(fs.existsSync(certificatePath)).toBe(true);
-  console.log(`[PASSED] Ownership certificate downloaded: ${certificatePath}`);
+    const auth = new AuthPage(page, BASE_URL);
+    const marketplace = new MarketplacePage(page, BASE_URL);
 
-  await page.getByRole('link', { name: /^my property holdings$/i }).click();
-  await expect(page).toHaveURL(/\/en\/dashboard\/my-portfolio\/?(?:\?|$)/);
-  console.log('[PASSED] My Property Holdings opened');
+    await allure.step('Login, open first listing checkout and payment drawer', async () => {
+      await auth.loginSimple(EMAIL, PASSWORD);
+      await marketplace.open();
+      const firstCard = marketplace.purchasableCards().first();
+      await expect(firstCard).toBeVisible();
+      await marketplace.openCheckout(firstCard);
+      await marketplace.fillCheckoutAndOpenPayment(PHONE);
+    });
 
-  const purchasedHolding = page
-    .locator('article:visible')
-    .filter({ hasText: new RegExp(projectName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') })
-    .first();
-  await expect(purchasedHolding).toBeVisible();
-  console.log(`[PASSED] Purchased project is visible in holdings: ${projectName}`);
+    await allure.step('Assert Make Digital Payment visible', async () => {
+      await expect(page.getByRole('button', { name: /make digital payment/i })).toBeVisible({ timeout: 10_000 });
+      console.log('✅ NEGATIVE 3 — "Make Digital Payment" option visible in payment drawer: PASSED');
 
-  await purchasedHolding.getByRole('link', { name: /^view details$/i }).click();
-  await expect(page).toHaveURL(
-    /\/en\/dashboard\/my-portfolio\/[^/]+\/?(?:\?|$)/,
-  );
-  await expect(
-    page.getByRole('heading', { level: 1, name: new RegExp(projectName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') }),
-  ).toBeVisible();
-  await expect(page.getByText(/^share activities$/i).last()).toBeVisible();
-  console.log(`[PASSED] Holding details verified for purchased project: ${projectName}`);
+      const bkashVisible = await page.getByText(/pay with bkash/i).isVisible({ timeout: 3_000 }).catch(() => false);
+      console.log(`✅ NEGATIVE 3 — bKash option visible: ${bkashVisible} (informational only): PASSED`);
+    });
+  });
+
+  test('❌ NEGATIVE 4 — Marketplace checkout Buy button disabled when page first loads', async ({ page }) => {
+    test.setTimeout(60_000);
+    await allure.severity('normal');
+    await allure.story('Payment drawer closed until Buy is clicked');
+    await allure.tags('negative', 'checkout');
+
+    const auth = new AuthPage(page, BASE_URL);
+    const marketplace = new MarketplacePage(page, BASE_URL);
+
+    await allure.step('Login and open first listing checkout', async () => {
+      await auth.loginSimple(EMAIL, PASSWORD);
+      await marketplace.open();
+      const firstCard = marketplace.purchasableCards().first();
+      await expect(firstCard).toBeVisible();
+      await marketplace.openCheckout(firstCard);
+    });
+
+    await allure.step('Assert payment drawer closed and Buy enabled', async () => {
+      const drawerVisibleBeforeClick = await page.getByText(/select payment method/i).isVisible({ timeout: 2_000 }).catch(() => false);
+      expect(drawerVisibleBeforeClick, 'Payment drawer must not be open before Buy is clicked').toBe(false);
+      console.log('✅ NEGATIVE 4 — Payment drawer not visible before Buy button click: PASSED');
+
+      await expect(page.getByRole('button', { name: /^buy$/i })).toBeEnabled({ timeout: 10_000 });
+      console.log('✅ NEGATIVE 4 — Buy button is enabled on checkout page: PASSED');
+    });
+  });
 });

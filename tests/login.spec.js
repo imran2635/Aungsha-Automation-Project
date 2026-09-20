@@ -1,21 +1,24 @@
-const { test, expect } = require('@playwright/test');
+const { test } = require('@playwright/test');
+const allure = require('allure-js-commons');
+const { AuthPage } = require('../pages/AuthPage');
 
 const EMAIL = process.env.AUNGSHA_EMAIL;
 const PASSWORD = process.env.AUNGSHA_PASSWORD;
 
-test('log in to Aungsha with email', async ({ page }) => {
-  await page.goto('/en/sign-in', { waitUntil: 'domcontentloaded' });
+test.describe('Authentication — Login', () => {
+  test('log in to Aungsha with email', async ({ page }) => {
+    await allure.epic('Aungsha Staging');
+    await allure.feature('Authentication');
+    await allure.story('Login with email and password');
+    await allure.severity('critical');
+    await allure.owner('QA Automation');
+    await allure.tags('login', 'auth', 'staging');
+    await allure.description('Validates email/password login on Aungsha staging.');
 
-  const emailTab = page.getByRole('button', { name: /^email$/i });
-  if (await emailTab.isVisible().catch(() => false)) {
-    await emailTab.click();
-  }
+    const auth = new AuthPage(page);
 
-  await page.getByPlaceholder(/enter your email address/i).fill(EMAIL);
-  await page.getByPlaceholder(/enter your password/i).fill(PASSWORD);
-  await page.getByRole('button', { name: /^continue$/i }).click();
-
-  await expect(page).not.toHaveURL(/\/en\/sign-in(?:\?|$)/, {
-    timeout: 20_000,
+    await allure.step('Login with email credentials', async () => {
+      await auth.loginSimple(EMAIL, PASSWORD);
+    });
   });
 });

@@ -13,10 +13,18 @@
     "holding-details": "playwright test tests/holding-details.spec.js --headed",
     "referral-flow": "playwright test tests/referral-rewards-flow.spec.js --headed",
     "support-ticket-flow": "playwright test tests/customer-support-ticket-flow.spec.js --headed",
+    "support-ticket-flow:allure": "playwright test tests/customer-support-ticket-flow.spec.js --headed && npm run allure:report",
     "withdrawal-flow": "playwright test tests/withdrawal-flow.spec.js --headed",
-    "test": "playwright test"
+    "fund-balance-suite": "playwright test tests/fund-balance-test-suite.spec.js --headed",
+    "test": "playwright test",
+    "allure:generate": "allure generate allure-results --clean -o allure-report",
+    "allure:open": "allure open allure-report",
+    "allure:serve": "allure serve allure-results",
+    "allure:report": "npm run allure:generate && npm run allure:open"
   },
   "devDependencies": {
-    "@playwright/test": "^1.54.2"
+    "@playwright/test": "^1.54.2",
+    "allure-commandline": "^2.34.1",
+    "allure-playwright": "^3.4.3"
   }
 }
