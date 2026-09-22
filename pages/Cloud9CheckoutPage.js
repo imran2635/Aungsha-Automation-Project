@@ -6,6 +6,9 @@ class Cloud9CheckoutPage extends BasePage {
     super(page, baseUrl);
     this.phone = payment.phone;
     this.sandboxPin = payment.sandboxPin || '1234';
+    this.bkashPhone = payment.bkashPhone || payment.phone;
+    this.bkashOtp = payment.bkashOtp || '123456';
+    this.bkashPin = payment.bkashPin || '12121';
   }
 
   async openCheckoutFromDetails() {
@@ -47,6 +50,47 @@ class Cloud9CheckoutPage extends BasePage {
       return true;
     }
     return false;
+  }
+
+  async selectBkashPayment() {
+    const bkashOption = this.page
+      .getByRole('button', { name: /pay with bkash/i })
+      .or(this.page.getByText(/pay with bkash/i))
+      .first();
+    await expect(bkashOption).toBeVisible({ timeout: 15_000 });
+    await bkashOption.click();
+    const pressed = this.page.getByRole('button', { name: /pay with bkash/i }).first();
+    if (await pressed.isVisible().catch(() => false)) {
+      await expect(pressed).toHaveAttribute('aria-pressed', 'true');
+    }
+    return true;
+  }
+
+  async completeBkashSandbox({ expectSuccessUrl = /staging\.aungsha\.com/i } = {}) {
+    await Promise.all([
+      this.page.waitForURL(/sandbox\.payment\.bkash\.com/i, {
+        timeout: 30_000,
+        waitUntil: 'domcontentloaded',
+      }),
+      this.page.getByRole('button', { name: /make payment/i }).click(),
+    ]);
+
+    const confirmBkashStep = async (prompt, value) => {
+      await expect(this.page.locator('body')).toContainText(prompt, { timeout: 20_000 });
+      await this.page.locator('input:visible').first().fill(value);
+      const confirm = this.page.getByRole('button', { name: /^confirm$/i });
+      await expect(confirm).toBeVisible({ timeout: 20_000 });
+      await confirm.click();
+    };
+
+    await confirmBkashStep(/bKash Account Number|Account Number|Wallet Number/i, this.bkashPhone);
+    await confirmBkashStep(/OTP|verification code/i, this.bkashOtp);
+    await confirmBkashStep(/PIN/i, this.bkashPin);
+
+    await expect(this.page).toHaveURL(expectSuccessUrl, { timeout: 45_000 });
+    await expect(
+      this.page.getByText(/purchase summary|total paid|paid|purchase successful/i).first(),
+    ).toBeVisible({ timeout: 20_000 });
   }
 
   async completeShurjoPay({ expectSuccessUrl = /staging\.aungsha\.com/i } = {}) {

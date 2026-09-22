@@ -4,9 +4,9 @@ Based on `tests/*.spec.js` and `package.json` scripts.
 
 | Report item | Count |
 |---|---:|
-| Test files | **12** |
-| Playwright test cases | **24** |
-| npm flow scripts | **12** |
+| Test files | **13** |
+| Playwright test cases | **25** |
+| npm flow scripts | **13** |
 
 ---
 
@@ -39,15 +39,16 @@ npx.cmd playwright install chromium
 | 2 | `login` | login.spec.js | 1 |
 | 3 | `project-details` | project-details.spec.js | 1 |
 | 4 | `buy-flow` | buy-flow.spec.js | 1 |
-| 5 | `fund-balance-suite` | fund-balance-test-suite.spec.js | 1 |
-| 6 | `support-ticket-flow` | customer-support-ticket-flow.spec.js | 5 |
-| 7 | `marketplace-buy-flow` | project-buy-from-marketplace.spec.js | 5 |
-| 8 | `aungsha-sell-flow` | project-buy-sell-to-aungsha.spec.js | 5 |
-| 9 | `marketplace-flow` | project-buy-sell-to-marketplace.spec.js | 1 |
-| 10 | `withdrawal-flow` | withdrawal-flow.spec.js | 1 |
-| 11 | `referral-flow` | referral-rewards-flow.spec.js | 1 |
-| 12 | `holding-details` | holding-details.spec.js | 1 |
-| | **Total** | | **24** |
+| 5 | `project-buy-bkash` | project-buy-bkash.spec.js | 1 |
+| 6 | `fund-balance-suite` | fund-balance-test-suite.spec.js | 1 |
+| 7 | `support-ticket-flow` | customer-support-ticket-flow.spec.js | 5 |
+| 8 | `marketplace-buy-flow` | project-buy-from-marketplace.spec.js | 5 |
+| 9 | `aungsha-sell-flow` | project-buy-sell-to-aungsha.spec.js | 5 |
+| 10 | `marketplace-flow` | project-buy-sell-to-marketplace.spec.js | 1 |
+| 11 | `withdrawal-flow` | withdrawal-flow.spec.js | 1 |
+| 12 | `referral-flow` | referral-rewards-flow.spec.js | 1 |
+| 13 | `holding-details` | holding-details.spec.js | 1 |
+| | **Total** | | **25** |
 
 ---
 
@@ -88,7 +89,36 @@ Script: `tests/buy-flow.spec.js` · Cases: 1 · Checkpoints: **11**
 
 ---
 
-### 2. Use Funds Balance to Buy Project
+### 2. Buy Flow (Cloud 9 · bKash)
+
+```powershell
+$env:AUNGSHA_EMAIL='imran.bponi@gmail.com'; $env:AUNGSHA_PASSWORD='12345678'; $env:AUNGSHA_PHONE='01770618575'; $env:BKASH_SANDBOX_PHONE='01770618575'; $env:BKASH_SANDBOX_OTP='123456'; $env:BKASH_SANDBOX_PIN='12121'; $env:SLOW_MO='400'; npm.cmd run project-buy-bkash -- --reporter=line
+```
+
+Script: `tests/project-buy-bkash.spec.js` · Cases: 1 · Checkpoints: **14**
+
+```
+✅ 1.  Sign-in page opened
+✅ 2.  Login successful
+✅ 3.  Projects page opened
+✅ 4.  Cloud 9 details page opened
+✅ 5.  Checkout page opened
+✅ 6.  Checkout information completed
+✅ 7.  Payment method drawer opened
+✅ 8.  Pay with bKash selected
+✅ 9.  bKash Sandbox opened
+✅ 10. bKash sandbox payment successful
+✅ 11. Purchase success page opened
+✅ 12. Invoice downloaded
+✅ 13. Ownership Certificate downloaded
+✅ 14. Full project buy via bKash flow completed
+```
+
+Downloaded files: `E:\Test\downloads\`
+
+---
+
+### 3. Use Funds Balance to Buy Project
 
 ```powershell
 $env:AUNGSHA_EMAIL='imran.bponi@gmail.com'; $env:AUNGSHA_PASSWORD='12345678'; $env:SLOW_MO='800'; npm.cmd run fund-balance-suite -- --reporter=line
@@ -114,7 +144,7 @@ Script: `tests/fund-balance-test-suite.spec.js` · Cases: 1 · Checkpoints: **13
 
 ---
 
-### 3. Customer Support Flow
+### 4. Customer Support Flow
 
 ```powershell
 $env:AUNGSHA_EMAIL='imran.bponi@gmail.com'; $env:AUNGSHA_PASSWORD='12345678'; $env:AUNGSHA_PHONE='01772558896'; $env:SUPPORT_CATEGORY='Other'; $env:SLOW_MO='500'; npm.cmd run support-ticket-flow -- --reporter=line
@@ -140,7 +170,7 @@ $env:SUPPORT_TICKET_MESSAGE='Test issue description'
 
 ---
 
-### 4. Project Buy from Marketplace
+### 5. Project Buy from Marketplace
 
 ```powershell
 $env:AUNGSHA_EMAIL='imran.bponi@gmail.com'; $env:AUNGSHA_PASSWORD='12345678'; $env:AUNGSHA_PHONE='01772558896'; $env:SHURJOPAY_PIN='1234'; $env:SLOW_MO='400'; npm.cmd run marketplace-buy-flow -- --reporter=line
@@ -160,7 +190,7 @@ Downloaded files: `E:\Test\downloads\`
 
 ---
 
-### 5. Project Buy → Sell to Aungsha
+### 6. Project Buy → Sell to Aungsha
 
 ```powershell
 $env:AUNGSHA_EMAIL='imran.bponi@gmail.com'; $env:AUNGSHA_PASSWORD='12345678'; $env:AUNGSHA_PHONE='01772558896'; $env:SHURJOPAY_PIN='1234'; $env:SLOW_MO='400'; npm.cmd run aungsha-sell-flow -- --reporter=line
@@ -178,7 +208,7 @@ Script: `tests/project-buy-sell-to-aungsha.spec.js` · Cases: **5** · Checkpoin
 
 ---
 
-### 6. Project Buy → Sell to Marketplace
+### 7. Project Buy → Sell to Marketplace
 
 ```powershell
 Set-Location 'E:\Test'
@@ -224,7 +254,7 @@ To change asking price: `$env:MARKETPLACE_ASKING_PRICE='1800'`
 
 ---
 
-### 7. Withdrawal Flow
+### 8. Withdrawal Flow
 
 ```powershell
 Set-Location 'E:\Test'
@@ -247,7 +277,7 @@ OTP can also be placed in `E:\Test\withdrawal-otp.txt`.
 
 ---
 
-### 8. Referral Rewards Flow
+### 9. Referral Rewards Flow
 
 ```powershell
 Set-Location 'E:\Test'
