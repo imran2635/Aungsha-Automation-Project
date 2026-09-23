@@ -8,6 +8,7 @@
     "project-details": "playwright test tests/project-details.spec.js --headed",
     "buy-flow": "playwright test tests/buy-flow.spec.js --headed",
     "project-buy-bkash": "playwright test tests/project-buy-bkash.spec.js --headed",
+    "all-types-payment-method": "playwright test tests/all-types-payment-method.spec.js --headed --reporter=list",
     "aungsha-sell-flow": "playwright test tests/project-buy-sell-to-aungsha.spec.js --headed",
     "marketplace-flow": "playwright test tests/project-buy-sell-to-marketplace.spec.js --headed",
     "marketplace-buy-flow": "playwright test tests/project-buy-from-marketplace.spec.js --headed",

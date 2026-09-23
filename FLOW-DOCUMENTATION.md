@@ -4,9 +4,9 @@ Based on `tests/*.spec.js` and `package.json` scripts.
 
 | Report item | Count |
 |---|---:|
-| Test files | **13** |
-| Playwright test cases | **25** |
-| npm flow scripts | **13** |
+| Test files | **14** |
+| Playwright test cases | **52** |
+| npm flow scripts | **14** |
 
 ---
 
@@ -40,15 +40,16 @@ npx.cmd playwright install chromium
 | 3 | `project-details` | project-details.spec.js | 1 |
 | 4 | `buy-flow` | buy-flow.spec.js | 1 |
 | 5 | `project-buy-bkash` | project-buy-bkash.spec.js | 1 |
-| 6 | `fund-balance-suite` | fund-balance-test-suite.spec.js | 1 |
-| 7 | `support-ticket-flow` | customer-support-ticket-flow.spec.js | 5 |
-| 8 | `marketplace-buy-flow` | project-buy-from-marketplace.spec.js | 5 |
-| 9 | `aungsha-sell-flow` | project-buy-sell-to-aungsha.spec.js | 5 |
-| 10 | `marketplace-flow` | project-buy-sell-to-marketplace.spec.js | 1 |
-| 11 | `withdrawal-flow` | withdrawal-flow.spec.js | 1 |
-| 12 | `referral-flow` | referral-rewards-flow.spec.js | 1 |
-| 13 | `holding-details` | holding-details.spec.js | 1 |
-| | **Total** | | **25** |
+| 6 | `all-types-payment-method` | all-types-payment-method.spec.js | 27 |
+| 7 | `fund-balance-suite` | fund-balance-test-suite.spec.js | 1 |
+| 8 | `support-ticket-flow` | customer-support-ticket-flow.spec.js | 5 |
+| 9 | `marketplace-buy-flow` | project-buy-from-marketplace.spec.js | 5 |
+| 10 | `aungsha-sell-flow` | project-buy-sell-to-aungsha.spec.js | 5 |
+| 11 | `marketplace-flow` | project-buy-sell-to-marketplace.spec.js | 1 |
+| 12 | `withdrawal-flow` | withdrawal-flow.spec.js | 1 |
+| 13 | `referral-flow` | referral-rewards-flow.spec.js | 1 |
+| 14 | `holding-details` | holding-details.spec.js | 1 |
+| | **Total** | | **52** |
 
 ---
 
@@ -118,7 +119,387 @@ Downloaded files: `E:\Test\downloads\`
 
 ---
 
-### 3. Use Funds Balance to Buy Project
+### 3. All Types Payment Method (Positive · Negative · Boundary · ECPA)
+
+Source: `tests/all-types-payment-method.spec.js`  
+npm: `all-types-payment-method`  
+Total Playwright cases: **27** (3 Positive · 4 Negative · 12 Boundary · 8 ECPA)
+
+| Item | Value |
+|---|---|
+| Project under test | Cloud 9 (Inani) |
+| Base URL | `https://staging.aungsha.com` |
+| Download dir | `E:\\Test\\downloads\\` (Fund Balance certificate) |
+| Reporter | `list` (each case shows `✓` / `✘` + final `N passed`) |
+
+#### Environment variables (from the spec)
+
+| Variable | Default / example | Used for |
+|---|---|---|
+| `AUNGSHA_EMAIL` | `imran.bponi@gmail.com` | Login |
+| `AUNGSHA_PASSWORD` | `12345678` | Login |
+| `AUNGSHA_PHONE` | `01770618575` | Checkout phone / ShurjoPay |
+| `SHURJOPAY_PIN` | `1234` | ShurjoPay sandbox PIN |
+| `BKASH_SANDBOX_PHONE` | `01770618575` | bKash sandbox wallet |
+| `BKASH_SANDBOX_OTP` | `123456` | bKash sandbox OTP |
+| `BKASH_SANDBOX_PIN` | `12121` | bKash sandbox PIN |
+| `SLOW_MO` | `300` | Optional UI slowdown (ms) |
+
+#### Full run command
+
+```powershell
+Set-Location 'E:\Test'
+
+$env:AUNGSHA_EMAIL='imran.bponi@gmail.com'
+$env:AUNGSHA_PASSWORD='12345678'
+$env:AUNGSHA_PHONE='01770618575'
+$env:SHURJOPAY_PIN='1234'
+$env:BKASH_SANDBOX_PHONE='01770618575'
+$env:BKASH_SANDBOX_OTP='123456'
+$env:BKASH_SANDBOX_PIN='12121'
+$env:SLOW_MO='300'
+
+npm.cmd run all-types-payment-method
+```
+
+#### Run by type
+
+```powershell
+npx.cmd playwright test tests/all-types-payment-method.spec.js -g "POSITIVE" --headed --reporter=list
+npx.cmd playwright test tests/all-types-payment-method.spec.js -g "NEGATIVE" --headed --reporter=list
+npx.cmd playwright test tests/all-types-payment-method.spec.js -g "BOUNDARY" --headed --reporter=list
+npx.cmd playwright test tests/all-types-payment-method.spec.js -g "ECPA" --headed --reporter=list
+```
+
+#### How to read the terminal
+
+| Signal | Meaning |
+|---|---|
+| `✓` next to case title | Case **PASSED** |
+| `✘` / `×` next to case title | Case **FAILED** |
+| `27 passed (Xm)` | Total passed count |
+| `N failed` | Total failed count (if any) |
+| `✅ … PASSED` | Step checkpoint from `console.log` in the spec |
+| `test-results\...` | Failure screenshot / video / trace paths |
+
+#### Expected Playwright list output (all 27 cases)
+
+```
+Running 27 tests using 1 worker
+
+  ✓  ✅ POSITIVE 1 — Buy Cloud 9 via bKash sandbox
+  ✓  ✅ POSITIVE 2 — Buy Cloud 9 via ShurjoPay sandbox
+  ✓  ✅ POSITIVE 3 — Buy Cloud 9 via Fund Balance
+  ✓  ❌ NEGATIVE 1 — Unauthenticated Cloud 9 checkout redirects to sign-in
+  ✓  ❌ NEGATIVE 2 — Cloud 9 (Inani) visible with Buy Now in Projects
+  ✓  ❌ NEGATIVE 3 — Payment drawer shows bKash, Digital Payment, and Fund Balance
+  ✓  ❌ NEGATIVE 4 — Payment drawer closed until Buy is clicked
+  ✓  🔲 BOUNDARY 1 — Phone empty (min-1) blocks or keeps invalid state
+  ✓  🔲 BOUNDARY 2 — Phone too short (10 digits = min-1)
+  ✓  🔲 BOUNDARY 3 — Phone exact valid length (11 digits = min/max)
+  ✓  🔲 BOUNDARY 4 — Phone too long (12 digits = max+1)
+  ✓  🔲 BOUNDARY 5 — Fund balance edges: balance >= 0 and price > 0
+  ✓  🔲 BOUNDARY 6 — Payment method exclusivity + sandbox credential lengths
+  ✓  🔲 BOUNDARY 7 — Phone with letters (non-numeric edge)
+  ✓  🔲 BOUNDARY 8 — Phone with country code (+880 / 880) length edge
+  ✓  🔲 BOUNDARY 9 — Phone whitespace-only (blank edge)
+  ✓  🔲 BOUNDARY 10 — Invalid BD prefix (not 01x)
+  ✓  🔲 BOUNDARY 11 — OTP/PIN credential length edges (min-1 / exact / max+1)
+  ✓  🔲 BOUNDARY 12 — Use maximum fund amount equals purchase price edge
+  ✓  🧩 ECPA 1 — CRITICAL Valid auth class reaches Cloud 9 checkout
+  ✓  🧩 ECPA 2 — CRITICAL Invalid credentials class stays on sign-in
+  ✓  🧩 ECPA 3 — CRITICAL Valid phone class (01x · 11 digits)
+  ✓  🧩 ECPA 4 — CRITICAL Invalid phone class shows validation
+  ✓  🧩 ECPA 5 — CRITICAL All valid payment-method classes selectable
+  ✓  🧩 ECPA 6 — CRITICAL None-selected payment class blocks Make Payment
+  ✓  🧩 ECPA 7 — CRITICAL Sufficient funds class enables Confirm
+  ✓  🧩 ECPA 8 — CRITICAL Digital payment class enables Make Payment CTA
+
+  27 passed (Xm)
+```
+
+#### Shared login → checkout helper checkpoints (printed by many cases)
+
+```
+✅ Sign-in page opened: PASSED
+✅ Login successful: PASSED
+✅ Projects page opened: PASSED
+✅ Cloud 9 details page opened: PASSED
+✅ Checkout page opened: PASSED
+✅ Checkout information completed: PASSED
+✅ Payment method drawer opened: PASSED
+```
+
+---
+
+#### POSITIVE — terminal checkpoints (3 cases)
+
+**POSITIVE 1 — Buy Cloud 9 via bKash sandbox**
+
+```
+✅ Sign-in page opened: PASSED
+✅ Login successful: PASSED
+✅ Projects page opened: PASSED
+✅ Cloud 9 details page opened: PASSED
+✅ Checkout page opened: PASSED
+✅ Checkout information completed: PASSED
+✅ Payment method drawer opened: PASSED
+✅ Pay with bKash selected: PASSED
+✅ bKash Sandbox opened: PASSED
+✅ bKash sandbox payment successful: PASSED
+✅ POSITIVE 1 — bKash project buy completed: PASSED
+```
+
+**POSITIVE 2 — Buy Cloud 9 via ShurjoPay sandbox**
+
+```
+✅ Sign-in page opened: PASSED
+✅ Login successful: PASSED
+✅ Projects page opened: PASSED
+✅ Cloud 9 details page opened: PASSED
+✅ Checkout page opened: PASSED
+✅ Checkout information completed: PASSED
+✅ Payment method drawer opened: PASSED
+✅ Make Digital Payment selected: PASSED
+✅ ShurjoPay Sandbox opened: PASSED
+✅ ShurjoPay sandbox payment successful: PASSED
+✅ POSITIVE 2 — ShurjoPay project buy completed: PASSED
+```
+
+**POSITIVE 3 — Buy Cloud 9 via Fund Balance**
+
+```
+✅ Sign-in page opened: PASSED
+✅ Login successful: PASSED
+✅ Projects page opened: PASSED
+✅ Cloud 9 details page opened: PASSED
+✅ Checkout page opened: PASSED
+✅ Checkout information completed: PASSED
+✅ Payment method drawer opened: PASSED
+✅ Fund Balance option visible, available BDT <balance>: PASSED
+✅ Fund Balance sufficient for purchase (BDT <balance> >= BDT <price>): PASSED
+✅ Fund Balance payment method selected: PASSED
+✅ Confirmed purchase with Fund Balance: PASSED
+✅ Purchase successful — PAID / Paid from Funds: PASSED
+✅ Ownership Certificate downloaded: PASSED (<path>)
+✅ POSITIVE 3 — Fund Balance project buy completed: PASSED
+```
+
+---
+
+#### NEGATIVE — terminal checkpoints (4 cases)
+
+**NEGATIVE 1 — Unauthenticated Cloud 9 checkout redirects to sign-in**
+
+```
+✅ NEGATIVE 1 — Unauthenticated checkout access blocked / redirected: PASSED
+```
+
+**NEGATIVE 2 — Cloud 9 (Inani) visible with Buy Now in Projects**
+
+```
+✅ NEGATIVE 2 — Cloud 9 (Inani) visible in Projects list: PASSED
+✅ NEGATIVE 2 — Cloud 9 Buy/Prebook Now button visible on card: PASSED
+```
+
+**NEGATIVE 3 — Payment drawer shows bKash, Digital Payment, and Fund Balance**
+
+```
+✅ Sign-in / Projects / Checkout / Drawer helper checkpoints…
+✅ NEGATIVE 3 — Pay with bKash option visible: PASSED
+✅ NEGATIVE 3 — Make Digital Payment option visible: PASSED
+✅ NEGATIVE 3 — Use Funds Balance option visible: PASSED
+```
+
+**NEGATIVE 4 — Payment drawer closed until Buy is clicked**
+
+```
+✅ NEGATIVE 4 — Payment drawer not visible before Buy button click: PASSED
+✅ NEGATIVE 4 — Buy button is enabled on checkout page: PASSED
+```
+
+---
+
+#### BOUNDARY — terminal checkpoints (12 cases)
+
+**BOUNDARY 1 — Phone empty (min-1)**
+
+```
+✅ BOUNDARY 1 — Phone field cleared to empty: PASSED
+✅ BOUNDARY 1 — Empty phone handled (drawerOpened=<bool>, validation=<bool>): PASSED
+```
+
+**BOUNDARY 2 — Phone too short (10 digits = min-1)**
+
+```
+✅ BOUNDARY 2 — Phone accepted length 10 (< 11): PASSED
+✅ BOUNDARY 2 — Short phone boundary checked (drawer=<bool>, error=<bool>): PASSED
+```
+
+**BOUNDARY 3 — Phone exact valid length (11 digits)**
+
+```
+✅ BOUNDARY 3 — Exact 11-digit phone accepted: PASSED
+✅ BOUNDARY 3 — Payment drawer opens with exact valid phone: PASSED
+```
+
+**BOUNDARY 4 — Phone too long (12 digits = max+1)**
+
+```
+✅ BOUNDARY 4 — Long phone truncated/capped | validation shown | over-max observed: PASSED
+```
+
+**BOUNDARY 5 — Fund balance edges**
+
+```
+✅ BOUNDARY 5 — Available balance BDT <n> >= 0: PASSED
+✅ BOUNDARY 5 — Purchase price BDT <n> > 0: PASSED
+✅ BOUNDARY 5 — Balance >= price edge (BDT <bal> >= BDT <price>): PASSED
+```
+
+**BOUNDARY 6 — Payment exclusivity + credential lengths**
+
+```
+✅ BOUNDARY 6 — Credential lengths (phone=11, OTP=6, PIN=5, Shurjo=4): PASSED
+✅ BOUNDARY 6 — bKash selected (aria-pressed=true): PASSED
+✅ BOUNDARY 6 — Switching to Digital clears bKash pressed state: PASSED
+✅ BOUNDARY 6 — Switching to Funds clears Digital pressed state: PASSED
+```
+
+**BOUNDARY 7 — Phone with letters**
+
+```
+✅ BOUNDARY 7 — Alpha phone handled (stored="<value>", error=<bool>): PASSED
+```
+
+**BOUNDARY 8 — Phone with country code (880)**
+
+```
+✅ BOUNDARY 8 — Country-code phone edge (length=<n>, error=<bool>): PASSED
+```
+
+**BOUNDARY 9 — Phone whitespace-only**
+
+```
+✅ BOUNDARY 9 — Whitespace phone handled (trimmedLen=<n>, error=<bool>): PASSED
+```
+
+**BOUNDARY 10 — Invalid BD prefix (not 01x)**
+
+```
+✅ BOUNDARY 10 — Invalid prefix handled (value=<phone>, error=<bool>, drawer=<bool>): PASSED
+```
+
+**BOUNDARY 11 — OTP/PIN credential length edges**
+
+```
+✅ BOUNDARY 11 — OTP edges 5 / 6 / 7 defined; exact sandbox OTP=6: PASSED
+✅ BOUNDARY 11 — bKash PIN edges 4 / 5 / 6 defined; exact sandbox PIN=5: PASSED
+✅ BOUNDARY 11 — ShurjoPay PIN edges 3 / 4 / 5 defined; configured PIN length=4: PASSED
+```
+
+**BOUNDARY 12 — Use maximum fund amount**
+
+```
+✅ BOUNDARY 12 — Use maximum button clicked: PASSED
+✅ BOUNDARY 12 — Confirm enabled when balance>=price (BDT <bal> >= <price>): PASSED
+```
+
+---
+
+#### ECPA — terminal checkpoints (8 critical cases)
+
+**ECPA 1 — Valid auth class reaches Cloud 9 checkout**
+
+```
+✅ ECPA 1 — Valid auth class: login succeeded: PASSED
+✅ ECPA 1 — Valid auth class reaches Cloud 9 checkout: PASSED
+```
+
+**ECPA 2 — Invalid credentials class stays on sign-in**
+
+```
+✅ ECPA 2 — Invalid credentials blocked (onSignIn=<bool>, error=<bool>): PASSED
+```
+
+**ECPA 3 — Valid phone class (01x · 11 digits)**
+
+```
+✅ ECPA 3 — Valid phone class opens payment drawer: PASSED
+```
+
+**ECPA 4 — Invalid phone class shows validation**
+
+```
+✅ ECPA 4 — Invalid phone class handled (value=<phone>, error=<bool>): PASSED
+```
+
+**ECPA 5 — All valid payment-method classes selectable**
+
+```
+✅ ECPA 5 — Valid class: Pay with bKash selectable: PASSED
+✅ ECPA 5 — Valid class: Make Digital Payment selectable: PASSED
+✅ ECPA 5 — Valid class: Use Funds Balance selectable: PASSED
+```
+
+**ECPA 6 — None-selected payment class blocks Make Payment**
+
+```
+✅ ECPA 6 — Make Payment disabled when no method selected: PASSED
+```
+
+**ECPA 7 — Sufficient funds class enables Confirm**
+
+```
+✅ ECPA 7 — Sufficient funds class (BDT <bal> >= <price>) Confirm enabled: PASSED
+```
+
+**ECPA 8 — Digital payment class enables Make Payment CTA**
+
+```
+✅ ECPA 8 — Digital payment class enables Make Payment: PASSED
+✅ ECPA 8 — bKash payment class also enables Make Payment: PASSED
+```
+
+---
+
+#### Case inventory summary (exact titles from the spec)
+
+| # | Type | Exact test title |
+|---:|---|---|
+| 1 | Positive | ✅ POSITIVE 1 — Buy Cloud 9 via bKash sandbox |
+| 2 | Positive | ✅ POSITIVE 2 — Buy Cloud 9 via ShurjoPay sandbox |
+| 3 | Positive | ✅ POSITIVE 3 — Buy Cloud 9 via Fund Balance |
+| 4 | Negative | ❌ NEGATIVE 1 — Unauthenticated Cloud 9 checkout redirects to sign-in |
+| 5 | Negative | ❌ NEGATIVE 2 — Cloud 9 (Inani) visible with Buy Now in Projects |
+| 6 | Negative | ❌ NEGATIVE 3 — Payment drawer shows bKash, Digital Payment, and Fund Balance |
+| 7 | Negative | ❌ NEGATIVE 4 — Payment drawer closed until Buy is clicked |
+| 8 | Boundary | 🔲 BOUNDARY 1 — Phone empty (min-1) blocks or keeps invalid state |
+| 9 | Boundary | 🔲 BOUNDARY 2 — Phone too short (10 digits = min-1) |
+| 10 | Boundary | 🔲 BOUNDARY 3 — Phone exact valid length (11 digits = min/max) |
+| 11 | Boundary | 🔲 BOUNDARY 4 — Phone too long (12 digits = max+1) |
+| 12 | Boundary | 🔲 BOUNDARY 5 — Fund balance edges: balance >= 0 and price > 0 |
+| 13 | Boundary | 🔲 BOUNDARY 6 — Payment method exclusivity + sandbox credential lengths |
+| 14 | Boundary | 🔲 BOUNDARY 7 — Phone with letters (non-numeric edge) |
+| 15 | Boundary | 🔲 BOUNDARY 8 — Phone with country code (+880 / 880) length edge |
+| 16 | Boundary | 🔲 BOUNDARY 9 — Phone whitespace-only (blank edge) |
+| 17 | Boundary | 🔲 BOUNDARY 10 — Invalid BD prefix (not 01x) |
+| 18 | Boundary | 🔲 BOUNDARY 11 — OTP/PIN credential length edges (min-1 / exact / max+1) |
+| 19 | Boundary | 🔲 BOUNDARY 12 — Use maximum fund amount equals purchase price edge |
+| 20 | ECPA | 🧩 ECPA 1 — CRITICAL Valid auth class reaches Cloud 9 checkout |
+| 21 | ECPA | 🧩 ECPA 2 — CRITICAL Invalid credentials class stays on sign-in |
+| 22 | ECPA | 🧩 ECPA 3 — CRITICAL Valid phone class (01x · 11 digits) |
+| 23 | ECPA | 🧩 ECPA 4 — CRITICAL Invalid phone class shows validation |
+| 24 | ECPA | 🧩 ECPA 5 — CRITICAL All valid payment-method classes selectable |
+| 25 | ECPA | 🧩 ECPA 6 — CRITICAL None-selected payment class blocks Make Payment |
+| 26 | ECPA | 🧩 ECPA 7 — CRITICAL Sufficient funds class enables Confirm |
+| 27 | ECPA | 🧩 ECPA 8 — CRITICAL Digital payment class enables Make Payment CTA |
+
+> **Note:** POSITIVE 1–3 perform real Cloud 9 purchases on staging. For validation-only runs, use `-g "NEGATIVE"`, `-g "BOUNDARY"`, or `-g "ECPA"`.
+
+---
+
+### 4. Use Funds Balance to Buy Project
 
 ```powershell
 $env:AUNGSHA_EMAIL='imran.bponi@gmail.com'; $env:AUNGSHA_PASSWORD='12345678'; $env:SLOW_MO='800'; npm.cmd run fund-balance-suite -- --reporter=line
@@ -144,7 +525,7 @@ Script: `tests/fund-balance-test-suite.spec.js` · Cases: 1 · Checkpoints: **13
 
 ---
 
-### 4. Customer Support Flow
+### 5. Customer Support Flow
 
 ```powershell
 $env:AUNGSHA_EMAIL='imran.bponi@gmail.com'; $env:AUNGSHA_PASSWORD='12345678'; $env:AUNGSHA_PHONE='01772558896'; $env:SUPPORT_CATEGORY='Other'; $env:SLOW_MO='500'; npm.cmd run support-ticket-flow -- --reporter=line
@@ -170,7 +551,7 @@ $env:SUPPORT_TICKET_MESSAGE='Test issue description'
 
 ---
 
-### 5. Project Buy from Marketplace
+### 6. Project Buy from Marketplace
 
 ```powershell
 $env:AUNGSHA_EMAIL='imran.bponi@gmail.com'; $env:AUNGSHA_PASSWORD='12345678'; $env:AUNGSHA_PHONE='01772558896'; $env:SHURJOPAY_PIN='1234'; $env:SLOW_MO='400'; npm.cmd run marketplace-buy-flow -- --reporter=line
@@ -190,7 +571,7 @@ Downloaded files: `E:\Test\downloads\`
 
 ---
 
-### 6. Project Buy → Sell to Aungsha
+### 7. Project Buy → Sell to Aungsha
 
 ```powershell
 $env:AUNGSHA_EMAIL='imran.bponi@gmail.com'; $env:AUNGSHA_PASSWORD='12345678'; $env:AUNGSHA_PHONE='01772558896'; $env:SHURJOPAY_PIN='1234'; $env:SLOW_MO='400'; npm.cmd run aungsha-sell-flow -- --reporter=line
@@ -208,7 +589,7 @@ Script: `tests/project-buy-sell-to-aungsha.spec.js` · Cases: **5** · Checkpoin
 
 ---
 
-### 7. Project Buy → Sell to Marketplace
+### 8. Project Buy → Sell to Marketplace
 
 ```powershell
 Set-Location 'E:\Test'
@@ -254,7 +635,7 @@ To change asking price: `$env:MARKETPLACE_ASKING_PRICE='1800'`
 
 ---
 
-### 8. Withdrawal Flow
+### 9. Withdrawal Flow
 
 ```powershell
 Set-Location 'E:\Test'
@@ -277,7 +658,7 @@ OTP can also be placed in `E:\Test\withdrawal-otp.txt`.
 
 ---
 
-### 9. Referral Rewards Flow
+### 10. Referral Rewards Flow
 
 ```powershell
 Set-Location 'E:\Test'

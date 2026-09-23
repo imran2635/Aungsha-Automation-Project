@@ -16,11 +16,36 @@ class Cloud9CheckoutPage extends BasePage {
     await expect(this.page).toHaveURL(/\/en\/projects\/.+\/checkout\/?(?:\?|$)/, { timeout: 20_000 });
   }
 
-  async fillCheckoutInfo({ requirePhone = true } = {}) {
+  phoneInput() {
+    return this.page.getByPlaceholder(/enter your phone number/i);
+  }
+
+  buyOrPrebookButton() {
+    return this.page.getByRole('button', { name: /^(?:buy|prebook)$/i });
+  }
+
+  async dismissNomineeIfNeeded() {
     const withoutNominee = this.page.getByRole('button', { name: /continue without nominee/i });
     if (await withoutNominee.isVisible().catch(() => false)) await withoutNominee.click();
+  }
 
-    const phoneInput = this.page.getByPlaceholder(/enter your phone number/i);
+  async fillPhone(value) {
+    await this.dismissNomineeIfNeeded();
+    const phoneInput = this.phoneInput();
+    await expect(phoneInput).toBeVisible({ timeout: 10_000 });
+    await phoneInput.fill('');
+    await phoneInput.fill(String(value));
+    return phoneInput;
+  }
+
+  async readPhoneValue() {
+    return this.phoneInput().inputValue();
+  }
+
+  async fillCheckoutInfo({ requirePhone = true } = {}) {
+    await this.dismissNomineeIfNeeded();
+
+    const phoneInput = this.phoneInput();
     if (await phoneInput.isVisible({ timeout: 3_000 }).catch(() => false)) {
       if (this.phone) {
         await phoneInput.fill(this.phone);
@@ -29,6 +54,27 @@ class Cloud9CheckoutPage extends BasePage {
     } else if (requirePhone && this.phone) {
       await phoneInput.fill(this.phone);
     }
+  }
+
+  async readFundBalanceSummary() {
+    const useFundsButton = this.page.getByRole('button', { name: /use funds balance/i });
+    await expect(useFundsButton).toBeVisible();
+    if ((await useFundsButton.getAttribute('aria-pressed')) !== 'true') {
+      await useFundsButton.click();
+    }
+    await expect(useFundsButton).toHaveAttribute('aria-pressed', 'true');
+
+    const balanceLocator = this.page.getByText(/available balance/i).first();
+    await expect(balanceLocator).toBeVisible();
+    const balanceRaw = await balanceLocator.textContent();
+    const balanceNums = balanceRaw?.replace(/,/g, '').match(/(\d+)/g);
+    const balance = balanceNums ? Number(balanceNums[balanceNums.length - 1]) : NaN;
+
+    const fundAmountText = await this.page.getByText(/use maximum:.*BDT/i).first().textContent().catch(() => '');
+    const purchasePriceNums = fundAmountText.replace(/,/g, '').match(/(\d+)/g);
+    const purchasePrice = purchasePriceNums ? Number(purchasePriceNums[purchasePriceNums.length - 1]) : NaN;
+
+    return { balance, purchasePrice };
   }
 
   async openPaymentDrawer() {
