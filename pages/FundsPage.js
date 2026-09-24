@@ -23,7 +23,10 @@ class FundsPage extends BasePage {
 
   async readAvailableBalance() {
     const fundsText = await this.page.locator('body').innerText();
-    const match = fundsText.replace(/,/g, '').match(/(?:available|balance|fund)[^\d]*(\d+)/i);
+    // Prefer exact "Available Balance BDT 200.00" style match (avoid random page digits)
+    const exact = fundsText.match(/Available\s+Balance\s*BDT\s*([\d,.]+)/i);
+    if (exact) return Number(exact[1].replace(/,/g, ''));
+    const match = fundsText.replace(/,/g, '').match(/available[^\d]*(\d+(?:\.\d+)?)/i);
     return match ? Number(match[1]) : -1;
   }
 
