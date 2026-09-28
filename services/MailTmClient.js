@@ -60,8 +60,28 @@ class MailTmClient {
   }
 
   async waitForVerificationMail(mailbox, verificationPage) {
+    return this.waitForOtpMail(mailbox, {
+      verificationPage,
+      fromHint: /aungsha/i,
+    });
+  }
+
+  /**
+   * Poll Mail.tm for an OTP (or verification link) from Aungsha.
+   * Pass `seenIds` / `afterIso` so password-change OTP is not confused with signup mail.
+   */
+  async waitForOtpMail(mailbox, options = {}) {
+    const {
+      verificationPage,
+      fromHint = /aungsha/i,
+      subjectHint = /./,
+      seenIds = new Set(),
+      afterIso = null,
+      maxAttempts = 75,
+    } = options;
+
     let messageId;
-    for (let attempt = 0; attempt < 75; attempt += 1) {
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
       const response = await this.withRetry(
         'Mail.tm messages request',
         () => this.request.get(`${this.apiBase}/messages`, {
@@ -70,9 +90,14 @@ class MailTmClient {
       );
       const payload = await response.json();
       const messages = payload['hydra:member'] || payload.member || [];
-      const message = messages.find((item) =>
-        /aungsha/i.test(`${item.from?.name || ''} ${item.from?.address || ''} ${item.subject || ''}`),
-      );
+      const message = messages.find((item) => {
+        if (seenIds.has(item.id)) return false;
+        if (afterIso && item.createdAt && Date.parse(item.createdAt) < Date.parse(afterIso) - 2_000) {
+          return false;
+        }
+        const haystack = `${item.from?.name || ''} ${item.from?.address || ''} ${item.subject || ''}`;
+        return fromHint.test(haystack) && subjectHint.test(item.subject || '');
+      });
       if (message) {
         messageId = message.id;
         break;
@@ -87,7 +112,7 @@ class MailTmClient {
       }
       await new Promise((resolve) => setTimeout(resolve, 2_000));
     }
-    expect(messageId, 'Expected Aungsha verification email in Mail.tm').toBeTruthy();
+    expect(messageId, 'Expected Aungsha OTP / verification email in Mail.tm').toBeTruthy();
 
     const messageResponse = await this.withRetry(
       'Mail.tm message read',
@@ -104,14 +129,14 @@ class MailTmClient {
       .replace(/&nbsp;|&#160;/gi, ' ')
       .replace(/\s+/g, ' ');
     const otpMatch = readableText.match(
-      /(?:one-time passcode|verification code|otp)[\s\S]{0,300}?(?<!\d)(\d(?:\s+\d){5}|\d{6})(?!\d)/i,
-    );
+      /(?:one-time passcode|verification code|otp|code)[\s\S]{0,300}?(?<!\d)(\d(?:\s+\d){5}|\d{6})(?!\d)/i,
+    ) || readableText.match(/(?<!\d)(\d{6})(?!\d)/);
     const otp = otpMatch?.[1]?.replace(/\s/g, '');
     const verificationUrl = combinedText.match(/https?:\/\/[^\s"'<>]+/gi)
-      ?.find((href) => /staging\.aungsha\.com/i.test(href) && /verify|confirm|token/i.test(href));
+      ?.find((href) => /staging\.aungsha\.com/i.test(href) && /verify|confirm|token|password/i.test(href));
 
     expect(otp || verificationUrl, 'Expected OTP or verification link in temp-mail').toBeTruthy();
-    return { otp, verificationUrl };
+    return { otp, verificationUrl, messageId, subject: message.subject || '' };
   }
 }
 

@@ -18,6 +18,7 @@
     "support-ticket-flow": "playwright test tests/customer-support-ticket-flow.spec.js --headed",
     "withdrawal-flow": "playwright test tests/withdrawal-flow.spec.js --headed",
     "fund-balance-suite": "playwright test tests/fund-balance-test-suite.spec.js --headed",
+    "my-profile-password-flow": "playwright test tests/my-profile-info-add-password-change-login-flow.spec.js --headed --reporter=list",
     "test": "playwright test",
     "allure:generate": "allure generate allure-results --clean -o allure-report",
     "allure:open": "allure open allure-report",
