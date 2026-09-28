@@ -56,6 +56,7 @@ npm.cmd run buy-flow
 npm.cmd run project-buy-bkash
 npm.cmd run all-types-payment-method
 npm.cmd run campaign-code-flow
+npm.cmd run my-profile-password-flow
 npm.cmd run allure:report
 ```
 

@@ -4,9 +4,9 @@ Based on `tests/*.spec.js` and `package.json` scripts.
 
 | Report item | Count |
 |---|---:|
-| Test files | **14** |
-| Playwright test cases | **52** |
-| npm flow scripts | **14** |
+| Test files | **15** |
+| Playwright test cases | **53** |
+| npm flow scripts | **15** |
 
 ---
 
@@ -26,8 +26,8 @@ npm.cmd install
 npx.cmd playwright install chromium
 ```
 
-> **Warning:** signup, purchase, sell, listing, referral, support-ticket, and
-> withdrawal flows modify staging account data.
+> **Warning:** signup, purchase, sell, listing, referral, support-ticket,
+> withdrawal, and my-profile password-change flows modify staging account data.
 
 ---
 
@@ -49,7 +49,8 @@ npx.cmd playwright install chromium
 | 12 | `withdrawal-flow` | withdrawal-flow.spec.js | 1 |
 | 13 | `referral-flow` | referral-rewards-flow.spec.js | 1 |
 | 14 | `holding-details` | holding-details.spec.js | 1 |
-| | **Total** | | **52** |
+| 15 | `my-profile-password-flow` | my-profile-info-add-password-change-login-flow.spec.js | 1 |
+| | **Total** | | **53** |
 
 ---
 
@@ -681,6 +682,42 @@ npm.cmd run referral-flow
 ```
 
 Script: `tests/referral-rewards-flow.spec.js` · Cases: 1 · Checkpoints: **3** (conditional)
+
+---
+
+### 11. My Profile — Info Add + Password Change + Re-login
+
+Creates a **fresh Mail.tm account** each run (re-runnable). Updates Contact Info
+one-by-one (**Residential Address**, **Date of Birth**, **Nationality** only —
+Email / Phone are **not** changed), changes account password via email OTP,
+logs in with the new password, then verifies updated data on My Profile (UI + API).
+
+```powershell
+npm.cmd run my-profile-password-flow
+```
+
+Optional env:
+
+```powershell
+$env:SIGNUP_PASSWORD='Test@12345678'; $env:NEW_PASSWORD='987654321'; $env:PROFILE_ADDRESS='Dhaka Bangladesh Banani'; $env:PROFILE_NATIONALITY='Bangladeshi'; $env:PROFILE_DOB_DAY='10'; $env:PROFILE_DOB_MONTH='January'; $env:PROFILE_DOB_YEAR='2001'; npm.cmd run my-profile-password-flow
+```
+
+Script: `tests/my-profile-info-add-password-change-login-flow.spec.js` · Page: `pages/ProfilePage.js` · Cases: 1
+
+```
+✅ Temp mailbox created
+✅ Email signup tab active
+✅ Sign-up form submitted
+✅ Email verification completed
+✅ My Profile page opened
+✅ Residential Address / Date of Birth / Nationality updated
+✅ Change Password modal opened
+✅ Password OTP received + entered
+✅ Account password changed
+✅ Login with new password successful
+✅ My Profile UI + API show updated address / nationality / DOB
+✅ Full My-profile-info-add-password-change-login-flow completed
+```
 
 ---
 

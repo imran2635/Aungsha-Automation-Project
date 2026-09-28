@@ -30,6 +30,7 @@ E:\Test\
     TransactionsPage.js         # + PaymentSuccessPage (invoice/cert downloads)
     ReferralRewardsPage.js      # metrics, referral URL, waitForMetricsIncrease
     SupportTicketsPage.js       # create / negative ticket cases
+    ProfilePage.js              # my-profile contact updates + password change OTP
   services/
     MailTmClient.js             # api.mail.tm temp mailbox + verification wait
   tests/
@@ -48,6 +49,7 @@ E:\Test\
     withdrawal-flow.spec.js
     referral-rewards-flow.spec.js
     holding-details.spec.js
+    my-profile-info-add-password-change-login-flow.spec.js  # temp mail → profile → password OTP → re-login
   downloads/                    # runtime PDFs (gitignored)
   allure-results/ / allure-report/
   playwright-report/ / test-results/
@@ -74,6 +76,7 @@ Note: `FLOW-DOCUMENTATION.md` inventory may lag (e.g. campaign-code-flow added l
 | `withdrawal-flow` | withdrawal-flow.spec.js |
 | `referral-flow` | referral-rewards-flow.spec.js |
 | `holding-details` | holding-details.spec.js |
+| `my-profile-password-flow` | my-profile-info-add-password-change-login-flow.spec.js |
 | `test` | all specs |
 | `allure:generate` / `allure:open` / `allure:serve` / `allure:report` | Allure |
 

@@ -20,6 +20,15 @@ npx playwright install chromium
 npm run signup
 ```
 
+### My Profile — info update + password change + re-login
+
+```powershell
+npm.cmd run my-profile-password-flow
+```
+
+Fresh temp email each run. Updates Address / DOB / Nationality (not Email/Phone),
+changes password via OTP, re-logins, verifies My Profile data.
+
 Set the required credentials before running the tests:
 
 ```powershell
