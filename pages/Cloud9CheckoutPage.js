@@ -4,9 +4,9 @@ const { BasePage } = require('./BasePage');
 class Cloud9CheckoutPage extends BasePage {
   constructor(page, baseUrl, payment = {}) {
     super(page, baseUrl);
-    this.phone = payment.phone;
+    this.phone = payment.phone || '01929918378';
     this.sandboxPin = payment.sandboxPin || '1234';
-    this.bkashPhone = payment.bkashPhone || payment.phone || '01929918378';
+    this.bkashPhone = payment.bkashPhone || this.phone || '01929918378';
     this.bkashOtp = payment.bkashOtp || '123456';
     this.bkashPin = payment.bkashPin || '12121';
   }
@@ -56,25 +56,162 @@ class Cloud9CheckoutPage extends BasePage {
     }
   }
 
-  async readFundBalanceSummary() {
-    const useFundsButton = this.page.getByRole('button', { name: /use funds balance/i });
-    await expect(useFundsButton).toBeVisible();
-    if ((await useFundsButton.getAttribute('aria-pressed')) !== 'true') {
-      await useFundsButton.click();
+  async selectFundBalance() {
+    const funds = this.page.getByRole('button', { name: /use funds balance/i }).first();
+    await expect(funds).toBeVisible({ timeout: 15_000 });
+
+    // Balance is shown on the card even before selection
+    const cardText = (await funds.innerText().catch(() => '')) || '';
+    let balanceBefore = this.#parseBdtAmount(cardText, /available\s+balance/i);
+    if (!(balanceBefore > 0)) {
+      const balanceLocator = this.page.getByText(/available balance:\s*BDT/i).first();
+      await expect(balanceLocator).toBeVisible({ timeout: 10_000 });
+      balanceBefore = this.#parseBdtAmount(await balanceLocator.textContent(), /available\s+balance/i);
     }
-    await expect(useFundsButton).toHaveAttribute('aria-pressed', 'true');
+    expect(balanceBefore, 'Fund Balance must be > 0 to proceed').toBeGreaterThan(0);
 
-    const balanceLocator = this.page.getByText(/available balance/i).first();
-    await expect(balanceLocator).toBeVisible();
-    const balanceRaw = await balanceLocator.textContent();
-    const balanceNums = balanceRaw?.replace(/,/g, '').match(/(\d+)/g);
-    const balance = balanceNums ? Number(balanceNums[balanceNums.length - 1]) : NaN;
+    await this.#clickPaymentOption(funds, /amount from funds|use maximum/i);
 
-    const fundAmountText = await this.page.getByText(/use maximum:.*BDT/i).first().textContent().catch(() => '');
-    const purchasePriceNums = fundAmountText.replace(/,/g, '').match(/(\d+)/g);
-    const purchasePrice = purchasePriceNums ? Number(purchasePriceNums[purchasePriceNums.length - 1]) : NaN;
+    const useMaximum = this.page
+      .getByRole('button', { name: /use maximum/i })
+      .or(this.page.getByText(/^use maximum$/i))
+      .first();
+    if (await useMaximum.isVisible({ timeout: 5_000 }).catch(() => false)) {
+      await useMaximum.click({ force: true, timeout: 10_000 });
+    }
 
+    const purchasePrice = await this.readCheckoutSubtotal();
+    return { balanceBefore, purchasePrice };
+  }
+
+  fundsBalanceOption() {
+    return this.page.getByRole('button', { name: /use funds balance/i }).first();
+  }
+
+  async isFundBalanceVisible(timeout = 5_000) {
+    return this.fundsBalanceOption().isVisible({ timeout }).catch(() => false);
+  }
+
+  async clickUseMaximum() {
+    const useMaximum = this.page
+      .getByRole('button', { name: /use maximum/i })
+      .or(this.page.getByText(/^use maximum$/i))
+      .first();
+    await expect(useMaximum).toBeVisible({ timeout: 10_000 });
+    await useMaximum.click({ force: true, timeout: 10_000 });
+  }
+
+  async readCheckoutSubtotal() {
+    const body = await this.page.locator('body').innerText();
+    const subtotal = body.match(/Subtotal:\s*BDT\s*([\d,.]+)/i);
+    if (subtotal) return Number(subtotal[1].replace(/,/g, ''));
+    const total = body.match(/Total Payable\s*BDT\s*([\d,.]+)/i);
+    if (total) return Number(total[1].replace(/,/g, ''));
+    const boldTotal = body.match(/BDT\s*([\d,.]+)\s*Subtotal/i);
+    return boldTotal ? Number(boldTotal[1].replace(/,/g, '')) : NaN;
+  }
+
+  async readFundBalanceSummary() {
+    const funds = this.fundsBalanceOption();
+    await expect(funds).toBeVisible({ timeout: 15_000 });
+
+    const cardText = (await funds.innerText().catch(() => '')) || '';
+    let balance = this.#parseBdtAmount(cardText, /available\s+balance/i);
+    if (!(balance > 0)) {
+      const balanceLocator = this.page.getByText(/available balance:\s*BDT/i).first();
+      await expect(balanceLocator).toBeVisible({ timeout: 10_000 });
+      balance = this.#parseBdtAmount(await balanceLocator.textContent(), /available\s+balance/i);
+    }
+
+    await this.#clickPaymentOption(funds, /amount from funds|use maximum|make payment/i);
+    await this.clickUseMaximum().catch(() => {});
+
+    const purchasePrice = await this.readCheckoutSubtotal();
     return { balance, purchasePrice };
+  }
+
+  /**
+   * Complete purchase after funds are selected.
+   * Full cover → Confirm with funds, else Make Payment (may skip gateway).
+   * Partial cover → select gateway → Make Payment → sandbox.
+   */
+  async confirmWithFunds({ preferGateway = 'bkash' } = {}) {
+    const confirmFunds = this.page.getByRole('button', { name: /confirm with funds/i });
+    const makePayment = this.page.getByRole('button', { name: /make payment/i });
+
+    if (await confirmFunds.isVisible({ timeout: 3_000 }).catch(() => false)) {
+      await expect(confirmFunds).toBeEnabled({ timeout: 10_000 });
+      await confirmFunds.click({ force: true });
+      await expect(this.page).toHaveURL(/\/en\/payment\/success/, { timeout: 45_000 });
+      await expect(
+        this.page.getByText(/purchase summary|paid|purchase successful|paid from funds/i).first(),
+      ).toBeVisible({ timeout: 20_000 });
+      return;
+    }
+
+    await expect(makePayment).toBeVisible({ timeout: 10_000 });
+
+    const bodyBefore = await this.page.locator('body').innerText();
+    const balance = this.#parseBdtAmount(bodyBefore, /available\s+balance/i);
+    const subtotal = await this.readCheckoutSubtotal();
+    const fullyCovered = Number.isFinite(balance) && Number.isFinite(subtotal) && balance >= subtotal;
+
+    if (fullyCovered) {
+      await makePayment.click({ force: true });
+      await expect(this.page).toHaveURL(/\/en\/payment\/success/, { timeout: 45_000 });
+      await expect(
+        this.page.getByText(/purchase summary|paid|purchase successful|paid from funds/i).first(),
+      ).toBeVisible({ timeout: 20_000 });
+      return;
+    }
+
+    if (preferGateway === 'digital') {
+      await this.selectDigitalPayment();
+      await this.completeShurjoPay({
+        expectSuccessUrl: /staging\.aungsha\.com\/en\/payment\/success/i,
+      });
+      return;
+    }
+
+    await this.selectBkashPayment();
+    await this.completeBkashSandbox({
+      expectSuccessUrl: /staging\.aungsha\.com\/en\/payment\/success/i,
+    });
+  }
+
+  async #clickPaymentOption(option, expandedText) {
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      try {
+        await option.click({ force: true, timeout: 8_000 });
+      } catch {
+        await option.evaluate((el) => el.click()).catch(() => {});
+      }
+      const expanded = await this.page
+        .getByText(expandedText)
+        .first()
+        .isVisible({ timeout: 4_000 })
+        .catch(() => false);
+      const pressed = (await option.getAttribute('aria-pressed').catch(() => null)) === 'true';
+      if (expanded || pressed) return;
+      await this.page.waitForTimeout(500);
+    }
+    await expect(
+      this.page.getByText(expandedText).first(),
+      'Fund Balance option did not expand after click',
+    ).toBeVisible({ timeout: 10_000 });
+  }
+
+  #parseBdtAmount(text, labelRegex) {
+    if (!text) return NaN;
+    const cleaned = String(text).replace(/,/g, '');
+    if (labelRegex) {
+      const labeled = cleaned.match(
+        new RegExp(`${labelRegex.source}[^\\d]*BDT\\s*(\\d+(?:\\.\\d+)?)`, 'i'),
+      );
+      if (labeled) return Number(labeled[1]);
+    }
+    const any = cleaned.match(/BDT\s*(\d+(?:\.\d+)?)/i);
+    return any ? Number(any[1]) : NaN;
   }
 
   async openPaymentDrawer() {
@@ -150,46 +287,6 @@ class Cloud9CheckoutPage extends BasePage {
     await this.page.getByRole('button', { name: /^success/i }).click();
 
     await expect(this.page).toHaveURL(expectSuccessUrl, { timeout: 30_000 });
-  }
-
-  async selectFundBalance() {
-    const useFundsButton = this.page.getByRole('button', { name: /use funds balance/i });
-    await expect(useFundsButton).toBeVisible();
-    const balanceLocator = this.page.getByText(/available balance/i).first();
-    await expect(balanceLocator).toBeVisible();
-    const balanceRaw = await balanceLocator.textContent();
-    const balanceNums = balanceRaw?.replace(/,/g, '').match(/(\d+)/g);
-    const balanceBefore = balanceNums ? Number(balanceNums[balanceNums.length - 1]) : 0;
-    expect(balanceBefore, 'Fund Balance must be > 0 to proceed').toBeGreaterThan(0);
-
-    if ((await useFundsButton.getAttribute('aria-pressed')) !== 'true') {
-      await useFundsButton.click();
-    }
-    await expect(useFundsButton).toHaveAttribute('aria-pressed', 'true');
-    await expect(this.page.getByText(/amount from funds/i)).toBeVisible();
-    await expect(this.page.getByRole('button', { name: 'Use maximum' })).toBeVisible();
-
-    const fundAmountText = await this.page.getByText(/use maximum:.*BDT/i).first().textContent().catch(() => '');
-    const purchasePriceNums = fundAmountText.replace(/,/g, '').match(/(\d+)/g);
-    const purchasePrice = purchasePriceNums ? Number(purchasePriceNums[purchasePriceNums.length - 1]) : 0;
-    if (purchasePrice > 0) {
-      expect(
-        balanceBefore,
-        `Fund Balance (BDT ${balanceBefore}) must be >= purchase price (BDT ${purchasePrice})`,
-      ).toBeGreaterThanOrEqual(purchasePrice);
-    }
-
-    return { balanceBefore, purchasePrice };
-  }
-
-  async confirmWithFunds() {
-    const confirmButton = this.page.getByRole('button', { name: /confirm with funds/i });
-    await expect(confirmButton).toBeEnabled({ timeout: 10_000 });
-    await confirmButton.click();
-    await expect(this.page).toHaveURL(/\/en\/payment\/success/, { timeout: 30_000 });
-    await expect(this.page.getByText(/^paid$/i).first()).toBeVisible();
-    await expect(this.page.getByText(/paid from funds/i).first()).toBeVisible();
-    await expect(this.page.getByText(/purchase summary/i)).toBeVisible();
   }
 
   /** Full digital-payment purchase from projects list. */

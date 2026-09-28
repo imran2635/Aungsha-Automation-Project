@@ -25,7 +25,8 @@ Set the required credentials before running the tests:
 ```powershell
 $env:AUNGSHA_EMAIL='your-email@example.com'
 $env:AUNGSHA_PASSWORD='your-password'
-$env:AUNGSHA_PHONE='your-phone-number'
+$env:AUNGSHA_PHONE='01929918378'
+$env:BKASH_SANDBOX_PHONE='01929918378'
 $env:SHURJOPAY_PIN='your-sandbox-pin'
 npm run signup
 ```

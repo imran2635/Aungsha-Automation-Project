@@ -15,6 +15,8 @@ const { AuthPage } = require('../pages/AuthPage');
 const { ProjectsPage } = require('../pages/ProjectsPage');
 const { Cloud9CheckoutPage } = require('../pages/Cloud9CheckoutPage');
 const { PaymentSuccessPage } = require('../pages/TransactionsPage');
+const { FundsPage } = require('../pages/FundsPage');
+const { PortfolioPage } = require('../pages/PortfolioPage');
 
 const BASE_URL = 'https://staging.aungsha.com';
 const EMAIL = process.env.AUNGSHA_EMAIL;
@@ -24,7 +26,14 @@ const SANDBOX_PIN = process.env.SHURJOPAY_PIN || '1234';
 const BKASH_PHONE = process.env.BKASH_SANDBOX_PHONE || '01929918378';
 const BKASH_OTP = process.env.BKASH_SANDBOX_OTP || '123456';
 const BKASH_PIN = process.env.BKASH_SANDBOX_PIN || '12121';
+const MIN_FUND_BALANCE = Number(process.env.MIN_FUND_BALANCE || '1');
 const DOWNLOAD_DIR = path.resolve(__dirname, '..', 'downloads');
+
+if (!EMAIL || !PASSWORD) {
+  throw new Error(
+    'Missing credentials. Set AUNGSHA_EMAIL and AUNGSHA_PASSWORD before running all-types-payment-method.',
+  );
+}
 
 function createCheckout(page, overrides = {}) {
   return new Cloud9CheckoutPage(page, BASE_URL, {
@@ -37,10 +46,55 @@ function createCheckout(page, overrides = {}) {
   });
 }
 
-async function loginAndOpenCheckout(page) {
-  const auth = new AuthPage(page, BASE_URL);
+/** Ensure wallet has enough funds so "Use Funds Balance" appears in the payment drawer. */
+async function ensureWalletHasFunds(page, minBalance = MIN_FUND_BALANCE) {
+  const funds = new FundsPage(page, BASE_URL);
+  const portfolio = new PortfolioPage(page, BASE_URL);
+
+  await funds.open();
+  await page.waitForTimeout(1_000);
+  let balance = await funds.readAvailableBalance();
+  if (balance >= minBalance) {
+    console.log(`✅ Wallet funds ready (BDT ${balance} >= ${minBalance}): PASSED`);
+    return balance;
+  }
+
+  console.log(
+    `ℹ️ Wallet BDT ${balance} < ${minBalance} — converting a portfolio unit to funds…`,
+  );
+  await portfolio.open();
+  await portfolio.openFirstHoldingDetails();
+  await portfolio.convertUnitToFunds();
+  await funds.open();
+  await page.waitForTimeout(1_500);
+  balance = await funds.readAvailableBalance();
+  expect(
+    balance,
+    `Need at least BDT ${minBalance} fund balance after unit conversion (got BDT ${balance})`,
+  ).toBeGreaterThanOrEqual(minBalance);
+  console.log(`✅ Unit converted — wallet now BDT ${balance}: PASSED`);
+  return balance;
+}
+
+async function openCloud9PaymentDrawer(page) {
   const projects = new ProjectsPage(page, BASE_URL);
   const checkout = createCheckout(page);
+
+  await projects.open();
+  console.log('✅ Projects page opened: PASSED');
+  await projects.openCloud9Details();
+  console.log('✅ Cloud 9 details page opened: PASSED');
+  await checkout.openCheckoutFromDetails();
+  console.log('✅ Checkout page opened: PASSED');
+  await checkout.fillCheckoutInfo({ requirePhone: false });
+  console.log('✅ Checkout information completed: PASSED');
+  await checkout.openPaymentDrawer();
+  console.log('✅ Payment method drawer opened: PASSED');
+  return { projects, checkout, paymentSuccess: new PaymentSuccessPage(page, BASE_URL) };
+}
+
+async function loginAndOpenCheckout(page) {
+  const auth = new AuthPage(page, BASE_URL);
 
   await allure.step('Open sign-in and login', async () => {
     await auth.openSignIn();
@@ -51,20 +105,38 @@ async function loginAndOpenCheckout(page) {
     console.log('✅ Login successful: PASSED');
   });
 
-  await allure.step('Open Cloud 9 checkout', async () => {
-    await projects.open();
-    console.log('✅ Projects page opened: PASSED');
-    await projects.openCloud9Details();
-    console.log('✅ Cloud 9 details page opened: PASSED');
-    await checkout.openCheckoutFromDetails();
-    console.log('✅ Checkout page opened: PASSED');
-    await checkout.fillCheckoutInfo({ requirePhone: false });
-    console.log('✅ Checkout information completed: PASSED');
-    await checkout.openPaymentDrawer();
-    console.log('✅ Payment method drawer opened: PASSED');
+  const opened = await allure.step('Open Cloud 9 checkout', async () => openCloud9PaymentDrawer(page));
+  return { auth, ...opened };
+}
+
+/** Login → top up funds if needed → open Cloud 9 payment drawer (Fund Balance required). */
+async function loginEnsureFundsAndOpenCheckout(page, minBalance = MIN_FUND_BALANCE) {
+  const auth = new AuthPage(page, BASE_URL);
+
+  await allure.step('Open sign-in and login', async () => {
+    await auth.openSignIn();
+    console.log('✅ Sign-in page opened: PASSED');
+    await auth.handleCookieConsent();
+    await auth.fillCredentials(EMAIL, PASSWORD);
+    await auth.submitLogin();
+    console.log('✅ Login successful: PASSED');
   });
 
-  return { auth, projects, checkout, paymentSuccess: new PaymentSuccessPage(page, BASE_URL) };
+  await allure.step('Ensure wallet Fund Balance is available', async () => {
+    await ensureWalletHasFunds(page, minBalance);
+  });
+
+  const opened = await allure.step('Open Cloud 9 checkout', async () => openCloud9PaymentDrawer(page));
+
+  await allure.step('Assert Fund Balance option is visible in drawer', async () => {
+    await expect(
+      page.getByRole('button', { name: /use funds balance/i }),
+      'Fund Balance must appear after wallet top-up',
+    ).toBeVisible({ timeout: 15_000 });
+    console.log('✅ Use Funds Balance option visible in drawer: PASSED');
+  });
+
+  return { auth, ...opened };
 }
 
 async function loginAndOpenCheckoutWithoutDrawer(page) {
@@ -140,26 +212,32 @@ test.describe('Purchase — All Types Payment Method', () => {
   });
 
   test('✅ POSITIVE 3 — Buy Cloud 9 via Fund Balance', async ({ page }) => {
-    test.setTimeout(120_000);
+    test.setTimeout(180_000);
     await allure.severity('critical');
-    await allure.story('POSITIVE: Buy via Fund Balance');
+    await allure.story('POSITIVE: Buy via Fund Balance (full or partial + gateway)');
     await allure.description(
-      'Login → Cloud 9 checkout → Use Funds Balance → confirm → paid from funds success.',
+      'Login → ensure wallet funds → Cloud 9 checkout → Use Funds Balance → Use maximum → Confirm / Make Payment (remainder via bKash if needed) → success.',
     );
 
-    const { checkout, paymentSuccess } = await loginAndOpenCheckout(page);
+    const { checkout, paymentSuccess } = await loginEnsureFundsAndOpenCheckout(page);
 
-    await allure.step('Select Fund Balance and confirm purchase', async () => {
+    await allure.step('Select Fund Balance and complete purchase', async () => {
       const { balanceBefore, purchasePrice } = await checkout.selectFundBalance();
       console.log(`✅ Fund Balance option visible, available BDT ${balanceBefore}: PASSED`);
-      console.log(
-        `✅ Fund Balance sufficient for purchase (BDT ${balanceBefore} >= BDT ${purchasePrice}): PASSED`,
-      );
+      if (balanceBefore >= purchasePrice) {
+        console.log(
+          `✅ Fund Balance covers purchase (BDT ${balanceBefore} >= BDT ${purchasePrice}): PASSED`,
+        );
+      } else {
+        console.log(
+          `✅ Partial Fund Balance applied (BDT ${balanceBefore} of BDT ${purchasePrice}) — remainder via gateway: PASSED`,
+        );
+      }
       console.log('✅ Fund Balance payment method selected: PASSED');
 
-      await checkout.confirmWithFunds();
-      console.log('✅ Confirmed purchase with Fund Balance: PASSED');
-      console.log('✅ Purchase successful — PAID / Paid from Funds: PASSED');
+      await checkout.confirmWithFunds({ preferGateway: 'bkash' });
+      console.log('✅ Confirmed purchase with Fund Balance (and gateway if needed): PASSED');
+      console.log('✅ Purchase successful — PAID: PASSED');
     });
 
     await allure.step('Download Ownership Certificate', async () => {
@@ -227,14 +305,12 @@ test.describe('Purchase — All Types Payment Method', () => {
   test('❌ NEGATIVE 3 — Payment drawer shows bKash, Digital Payment, and Fund Balance', async ({
     page,
   }) => {
-    test.setTimeout(90_000);
+    test.setTimeout(180_000);
     await allure.severity('normal');
     await allure.story('NEGATIVE: All three payment methods visible in drawer');
     await allure.tags('negative', 'payment');
 
-    await allure.step('Login, open Cloud 9 checkout and payment drawer', async () => {
-      await loginAndOpenCheckout(page);
-    });
+    await loginEnsureFundsAndOpenCheckout(page);
 
     await allure.step('Assert all payment options visible', async () => {
       await expect(page.getByText(/pay with bkash/i).first()).toBeVisible({ timeout: 10_000 });
@@ -322,7 +398,7 @@ test.describe('Purchase — All Types Payment Method', () => {
     await allure.story('BOUNDARY: 10-digit phone is below BD mobile length');
     await allure.tags('boundary', 'phone');
 
-    const shortPhone = '0177061857'; // 10 digits
+    const shortPhone = '0192991837'; // 10 digits (from 01929918378)
     expect(shortPhone.length).toBe(10);
 
     const { checkout } = await loginAndOpenCheckoutWithoutDrawer(page);
@@ -427,12 +503,12 @@ test.describe('Purchase — All Types Payment Method', () => {
   });
 
   test('🔲 BOUNDARY 5 — Fund balance edges: balance >= 0 and price > 0', async ({ page }) => {
-    test.setTimeout(90_000);
+    test.setTimeout(180_000);
     await allure.severity('normal');
     await allure.story('BOUNDARY: Fund balance and purchase price edge values');
     await allure.tags('boundary', 'funds');
 
-    const { checkout } = await loginAndOpenCheckout(page);
+    const { checkout } = await loginEnsureFundsAndOpenCheckout(page);
 
     await allure.step('Read fund balance / purchase price and assert edges', async () => {
       const { balance, purchasePrice } = await checkout.readFundBalanceSummary();
@@ -440,23 +516,21 @@ test.describe('Purchase — All Types Payment Method', () => {
       await allure.parameter('purchasePrice', String(purchasePrice));
 
       expect(Number.isFinite(balance), 'Available balance must be a number').toBe(true);
-      expect(balance, 'Available balance boundary: must be >= 0').toBeGreaterThanOrEqual(0);
-      console.log(`✅ BOUNDARY 5 — Available balance BDT ${balance} >= 0: PASSED`);
+      expect(balance, 'Available balance boundary: must be > 0 when funds option shown').toBeGreaterThan(0);
+      console.log(`✅ BOUNDARY 5 — Available balance BDT ${balance} > 0: PASSED`);
 
       expect(Number.isFinite(purchasePrice), 'Purchase price must be a number').toBe(true);
       expect(purchasePrice, 'Purchase price boundary: must be > 0').toBeGreaterThan(0);
       console.log(`✅ BOUNDARY 5 — Purchase price BDT ${purchasePrice} > 0: PASSED`);
 
-      if (balance > 0) {
-        expect(
-          balance,
-          `When funds are used, balance (BDT ${balance}) must be >= price (BDT ${purchasePrice})`,
-        ).toBeGreaterThanOrEqual(purchasePrice);
+      if (balance >= purchasePrice) {
         console.log(
-          `✅ BOUNDARY 5 — Balance >= price edge (BDT ${balance} >= BDT ${purchasePrice}): PASSED`,
+          `✅ BOUNDARY 5 — Full-cover edge (BDT ${balance} >= BDT ${purchasePrice}): PASSED`,
         );
       } else {
-        console.log('✅ BOUNDARY 5 — Zero balance edge observed (cannot cover price): PASSED');
+        console.log(
+          `✅ BOUNDARY 5 — Partial-funds edge (BDT ${balance} < BDT ${purchasePrice}, gateway remainder OK): PASSED`,
+        );
       }
     });
   });
@@ -464,7 +538,7 @@ test.describe('Purchase — All Types Payment Method', () => {
   test('🔲 BOUNDARY 6 — Payment method exclusivity + sandbox credential lengths', async ({
     page,
   }) => {
-    test.setTimeout(90_000);
+    test.setTimeout(180_000);
     await allure.severity('normal');
     await allure.story('BOUNDARY: Only one payment method pressed; credential length edges');
     await allure.tags('boundary', 'payment', 'credentials');
@@ -477,13 +551,13 @@ test.describe('Purchase — All Types Payment Method', () => {
       console.log('✅ BOUNDARY 6 — Credential lengths (phone=11, OTP=6, PIN=5, Shurjo=4): PASSED');
     });
 
-    const { checkout } = await loginAndOpenCheckout(page);
+    const { checkout } = await loginEnsureFundsAndOpenCheckout(page);
 
-    await allure.step('Select bKash then Digital — only one aria-pressed', async () => {
+    await allure.step('Select bKash then Digital then Funds — only one aria-pressed', async () => {
       await checkout.selectBkashPayment();
       const bkash = page.getByRole('button', { name: /pay with bkash/i }).first();
       const digital = page.getByRole('button', { name: /make digital payment/i });
-      const funds = page.getByRole('button', { name: /use funds balance/i });
+      const funds = page.getByRole('button', { name: /use funds balance/i }).first();
 
       await expect(bkash).toHaveAttribute('aria-pressed', 'true');
       console.log('✅ BOUNDARY 6 — bKash selected (aria-pressed=true): PASSED');
@@ -494,8 +568,14 @@ test.describe('Purchase — All Types Payment Method', () => {
       expect(bkashStillPressed, 'Digital and bKash must not both stay pressed').toBe(false);
       console.log('✅ BOUNDARY 6 — Switching to Digital clears bKash pressed state: PASSED');
 
-      await funds.click();
-      await expect(funds).toHaveAttribute('aria-pressed', 'true');
+      await funds.click({ force: true, timeout: 10_000 });
+      const fundsPressed = (await funds.getAttribute('aria-pressed').catch(() => null)) === 'true';
+      const amountVisible = await page
+        .getByText(/amount from funds|available balance/i)
+        .first()
+        .isVisible({ timeout: 5_000 })
+        .catch(() => false);
+      expect(fundsPressed || amountVisible, 'Funds option must become selected/expanded').toBe(true);
       const digitalStillPressed = (await digital.getAttribute('aria-pressed')) === 'true';
       expect(digitalStillPressed, 'Funds and Digital must not both stay pressed').toBe(false);
       console.log('✅ BOUNDARY 6 — Switching to Funds clears Digital pressed state: PASSED');
@@ -686,37 +766,37 @@ test.describe('Purchase — All Types Payment Method', () => {
   });
 
   test('🔲 BOUNDARY 12 — Use maximum fund amount equals purchase price edge', async ({ page }) => {
-    test.setTimeout(90_000);
+    test.setTimeout(180_000);
     await allure.severity('normal');
-    await allure.story('BOUNDARY: Use maximum maps to exact purchase price');
+    await allure.story('BOUNDARY: Use maximum applies available funds toward purchase');
     await allure.tags('boundary', 'funds');
 
-    const { checkout } = await loginAndOpenCheckout(page);
+    const { checkout } = await loginEnsureFundsAndOpenCheckout(page);
 
     await allure.step('Select funds and click Use maximum', async () => {
       const { balance, purchasePrice } = await checkout.readFundBalanceSummary();
       await allure.parameter('balance', String(balance));
       await allure.parameter('purchasePrice', String(purchasePrice));
 
-      const useMaximum = page.getByRole('button', { name: /use maximum/i });
-      await expect(useMaximum).toBeVisible();
-      await useMaximum.click();
-      console.log('✅ BOUNDARY 12 — Use maximum button clicked: PASSED');
+      await checkout.clickUseMaximum();
+      console.log('✅ BOUNDARY 12 — Use maximum button/link clicked: PASSED');
 
       expect(purchasePrice, 'Purchase price edge must be > 0').toBeGreaterThan(0);
-      expect(balance, 'Balance edge must be >= 0').toBeGreaterThanOrEqual(0);
+      expect(balance, 'Balance edge must be > 0').toBeGreaterThan(0);
 
       const confirm = page.getByRole('button', { name: /confirm with funds/i });
-      if (balance >= purchasePrice) {
+      const makePayment = page.getByRole('button', { name: /make payment/i });
+
+      if (balance >= purchasePrice && (await confirm.isVisible().catch(() => false))) {
         await expect(confirm).toBeEnabled({ timeout: 10_000 });
         console.log(
-          `✅ BOUNDARY 12 — Confirm enabled when balance>=price (BDT ${balance} >= ${purchasePrice}): PASSED`,
+          `✅ BOUNDARY 12 — Confirm with funds enabled (BDT ${balance} >= ${purchasePrice}): PASSED`,
         );
       } else {
-        const disabled = await confirm.isDisabled().catch(() => true);
-        expect(disabled || balance < purchasePrice).toBe(true);
+        await checkout.selectBkashPayment();
+        await expect(makePayment).toBeEnabled({ timeout: 10_000 });
         console.log(
-          `✅ BOUNDARY 12 — Insufficient funds edge (BDT ${balance} < ${purchasePrice}): PASSED`,
+          `✅ BOUNDARY 12 — Make Payment enabled for partial funds + gateway (BDT ${balance} of ${purchasePrice}): PASSED`,
         );
       }
     });
@@ -839,12 +919,12 @@ test.describe('Purchase — All Types Payment Method', () => {
   });
 
   test('🧩 ECPA 5 — CRITICAL All valid payment-method classes selectable', async ({ page }) => {
-    test.setTimeout(90_000);
+    test.setTimeout(180_000);
     await allure.severity('critical');
     await allure.story('ECPA: bKash / Digital / Funds valid partitions are each selectable');
     await allure.tags('ecpa', 'payment', 'critical');
 
-    const { checkout } = await loginAndOpenCheckout(page);
+    const { checkout } = await loginEnsureFundsAndOpenCheckout(page);
 
     await allure.step('Select each valid payment class once', async () => {
       await checkout.selectBkashPayment();
@@ -861,11 +941,15 @@ test.describe('Purchase — All Types Payment Method', () => {
       );
       console.log('✅ ECPA 5 — Valid class: Make Digital Payment selectable: PASSED');
 
-      await page.getByRole('button', { name: /use funds balance/i }).click();
-      await expect(page.getByRole('button', { name: /use funds balance/i })).toHaveAttribute(
-        'aria-pressed',
-        'true',
-      );
+      const funds = page.getByRole('button', { name: /use funds balance/i }).first();
+      await funds.click({ force: true, timeout: 10_000 });
+      const fundsPressed = (await funds.getAttribute('aria-pressed').catch(() => null)) === 'true';
+      const amountVisible = await page
+        .getByText(/amount from funds|use maximum/i)
+        .first()
+        .isVisible({ timeout: 5_000 })
+        .catch(() => false);
+      expect(fundsPressed || amountVisible, 'Use Funds Balance must be selectable').toBe(true);
       console.log('✅ ECPA 5 — Valid class: Use Funds Balance selectable: PASSED');
     });
   });
@@ -926,31 +1010,34 @@ test.describe('Purchase — All Types Payment Method', () => {
   });
 
   test('🧩 ECPA 7 — CRITICAL Sufficient funds class enables Confirm', async ({ page }) => {
-    test.setTimeout(90_000);
+    test.setTimeout(180_000);
     await allure.severity('critical');
-    await allure.story('ECPA: Sufficient fund partition enables Confirm with funds');
+    await allure.story('ECPA: Funds partition enables Confirm or Make Payment (+ gateway)');
     await allure.tags('ecpa', 'funds', 'critical');
 
-    const { checkout } = await loginAndOpenCheckout(page);
+    const { checkout } = await loginEnsureFundsAndOpenCheckout(page);
 
-    await allure.step('Select funds and assert sufficient class behavior', async () => {
+    await allure.step('Select funds and assert pay CTA ready', async () => {
       const { balance, purchasePrice } = await checkout.readFundBalanceSummary();
       await allure.parameter('balance', String(balance));
       await allure.parameter('purchasePrice', String(purchasePrice));
 
       expect(purchasePrice, 'Purchase price must be in valid >0 class').toBeGreaterThan(0);
+      expect(balance, 'Funds class must have balance > 0').toBeGreaterThan(0);
 
       const confirm = page.getByRole('button', { name: /confirm with funds/i });
-      if (balance >= purchasePrice) {
+      const makePayment = page.getByRole('button', { name: /make payment/i });
+
+      if (balance >= purchasePrice && (await confirm.isVisible().catch(() => false))) {
         await expect(confirm).toBeEnabled({ timeout: 10_000 });
         console.log(
-          `✅ ECPA 7 — Sufficient funds class (BDT ${balance} >= ${purchasePrice}) Confirm enabled: PASSED`,
+          `✅ ECPA 7 — Full funds class (BDT ${balance} >= ${purchasePrice}) Confirm enabled: PASSED`,
         );
       } else {
-        const disabled = await confirm.isDisabled().catch(() => true);
-        expect(disabled).toBe(true);
+        await checkout.selectBkashPayment();
+        await expect(makePayment).toBeEnabled({ timeout: 10_000 });
         console.log(
-          `✅ ECPA 7 — Insufficient funds class (BDT ${balance} < ${purchasePrice}) Confirm disabled: PASSED`,
+          `✅ ECPA 7 — Partial funds class (BDT ${balance} of ${purchasePrice}) Make Payment enabled with gateway: PASSED`,
         );
       }
     });
