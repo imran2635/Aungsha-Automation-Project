@@ -17,7 +17,7 @@ const { PaymentSuccessPage } = require('../pages/TransactionsPage');
 
 const EMAIL = process.env.AUNGSHA_EMAIL;
 const PASSWORD = process.env.AUNGSHA_PASSWORD;
-const PHONE = process.env.AUNGSHA_PHONE;
+const PHONE = process.env.AUNGSHA_PHONE || '01929918378';
 const DOWNLOAD_DIR = path.resolve(__dirname, '..', 'downloads');
 
 test('Fund Balance purchase flow — all checkpoints', async ({ page }) => {

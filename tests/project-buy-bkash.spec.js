@@ -9,8 +9,8 @@ const { PaymentSuccessPage } = require('../pages/TransactionsPage');
 
 const EMAIL = process.env.AUNGSHA_EMAIL;
 const PASSWORD = process.env.AUNGSHA_PASSWORD;
-const PHONE = process.env.AUNGSHA_PHONE || process.env.BKASH_SANDBOX_PHONE || '01770618575';
-const BKASH_PHONE = process.env.BKASH_SANDBOX_PHONE || '01770618575';
+const PHONE = process.env.AUNGSHA_PHONE || process.env.BKASH_SANDBOX_PHONE || '01929918378';
+const BKASH_PHONE = process.env.BKASH_SANDBOX_PHONE || '01929918378';
 const BKASH_OTP = process.env.BKASH_SANDBOX_OTP || '123456';
 const BKASH_PIN = process.env.BKASH_SANDBOX_PIN || '12121';
 const DOWNLOAD_DIR = path.resolve(__dirname, '..', 'downloads');

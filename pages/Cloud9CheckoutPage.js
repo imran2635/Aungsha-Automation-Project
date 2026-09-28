@@ -6,7 +6,7 @@ class Cloud9CheckoutPage extends BasePage {
     super(page, baseUrl);
     this.phone = payment.phone;
     this.sandboxPin = payment.sandboxPin || '1234';
-    this.bkashPhone = payment.bkashPhone || payment.phone;
+    this.bkashPhone = payment.bkashPhone || payment.phone || '01929918378';
     this.bkashOtp = payment.bkashOtp || '123456';
     this.bkashPin = payment.bkashPin || '12121';
   }

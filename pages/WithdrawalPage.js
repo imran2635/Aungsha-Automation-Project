@@ -6,7 +6,7 @@ class WithdrawalPage extends BasePage {
   constructor(page, baseUrl, options = {}) {
     super(page, baseUrl);
     this.accountHolder = options.accountHolder;
-    this.bkashNumber = options.bkashNumber;
+    this.bkashNumber = options.bkashNumber || '01929918378';
     this.otp = options.otp;
     this.otpFile = options.otpFile;
     this.amount = options.amount;

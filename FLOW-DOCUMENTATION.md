@@ -69,7 +69,7 @@ Copy-paste ready PowerShell commands for the main flows.
 ### 1. Buy Flow (Cloud 9 · ShurjoPay)
 
 ```powershell
-$env:AUNGSHA_EMAIL='imran.bponi@gmail.com'; $env:AUNGSHA_PASSWORD='12345678'; $env:AUNGSHA_PHONE='01800000000'; $env:SHURJOPAY_PIN='1234'; $env:SLOW_MO='500'; npm.cmd run buy-flow -- --reporter=line
+$env:AUNGSHA_EMAIL='imran.bponi@gmail.com'; $env:AUNGSHA_PASSWORD='12345678'; $env:AUNGSHA_PHONE='01929918378'; $env:SHURJOPAY_PIN='1234'; $env:SLOW_MO='500'; npm.cmd run buy-flow -- --reporter=line
 ```
 
 Script: `tests/buy-flow.spec.js` · Cases: 1 · Checkpoints: **11**
@@ -93,7 +93,7 @@ Script: `tests/buy-flow.spec.js` · Cases: 1 · Checkpoints: **11**
 ### 2. Buy Flow (Cloud 9 · bKash)
 
 ```powershell
-$env:AUNGSHA_EMAIL='imran.bponi@gmail.com'; $env:AUNGSHA_PASSWORD='12345678'; $env:AUNGSHA_PHONE='01770618575'; $env:BKASH_SANDBOX_PHONE='01770618575'; $env:BKASH_SANDBOX_OTP='123456'; $env:BKASH_SANDBOX_PIN='12121'; $env:SLOW_MO='400'; npm.cmd run project-buy-bkash -- --reporter=line
+$env:AUNGSHA_EMAIL='imran.bponi@gmail.com'; $env:AUNGSHA_PASSWORD='12345678'; $env:AUNGSHA_PHONE='01929918378'; $env:BKASH_SANDBOX_PHONE='01929918378'; $env:BKASH_SANDBOX_OTP='123456'; $env:BKASH_SANDBOX_PIN='12121'; $env:SLOW_MO='400'; npm.cmd run project-buy-bkash -- --reporter=line
 ```
 
 Script: `tests/project-buy-bkash.spec.js` · Cases: 1 · Checkpoints: **14**
@@ -138,9 +138,9 @@ Total Playwright cases: **27** (3 Positive · 4 Negative · 12 Boundary · 8 ECP
 |---|---|---|
 | `AUNGSHA_EMAIL` | `imran.bponi@gmail.com` | Login |
 | `AUNGSHA_PASSWORD` | `12345678` | Login |
-| `AUNGSHA_PHONE` | `01770618575` | Checkout phone / ShurjoPay |
+| `AUNGSHA_PHONE` | `01929918378` | Checkout phone / ShurjoPay |
 | `SHURJOPAY_PIN` | `1234` | ShurjoPay sandbox PIN |
-| `BKASH_SANDBOX_PHONE` | `01770618575` | bKash sandbox wallet |
+| `BKASH_SANDBOX_PHONE` | `01929918378` | bKash sandbox wallet |
 | `BKASH_SANDBOX_OTP` | `123456` | bKash sandbox OTP |
 | `BKASH_SANDBOX_PIN` | `12121` | bKash sandbox PIN |
 | `SLOW_MO` | `300` | Optional UI slowdown (ms) |
@@ -152,9 +152,9 @@ Set-Location 'E:\Test'
 
 $env:AUNGSHA_EMAIL='imran.bponi@gmail.com'
 $env:AUNGSHA_PASSWORD='12345678'
-$env:AUNGSHA_PHONE='01770618575'
+$env:AUNGSHA_PHONE='01929918378'
 $env:SHURJOPAY_PIN='1234'
-$env:BKASH_SANDBOX_PHONE='01770618575'
+$env:BKASH_SANDBOX_PHONE='01929918378'
 $env:BKASH_SANDBOX_OTP='123456'
 $env:BKASH_SANDBOX_PIN='12121'
 $env:SLOW_MO='300'
@@ -528,7 +528,7 @@ Script: `tests/fund-balance-test-suite.spec.js` · Cases: 1 · Checkpoints: **13
 ### 5. Customer Support Flow
 
 ```powershell
-$env:AUNGSHA_EMAIL='imran.bponi@gmail.com'; $env:AUNGSHA_PASSWORD='12345678'; $env:AUNGSHA_PHONE='01772558896'; $env:SUPPORT_CATEGORY='Other'; $env:SLOW_MO='500'; npm.cmd run support-ticket-flow -- --reporter=line
+$env:AUNGSHA_EMAIL='imran.bponi@gmail.com'; $env:AUNGSHA_PASSWORD='12345678'; $env:AUNGSHA_PHONE='01929918378'; $env:SUPPORT_CATEGORY='Other'; $env:SLOW_MO='500'; npm.cmd run support-ticket-flow -- --reporter=line
 ```
 
 Script: `tests/customer-support-ticket-flow.spec.js` · Cases: **5** · Checkpoints: **24**
@@ -554,7 +554,7 @@ $env:SUPPORT_TICKET_MESSAGE='Test issue description'
 ### 6. Project Buy from Marketplace
 
 ```powershell
-$env:AUNGSHA_EMAIL='imran.bponi@gmail.com'; $env:AUNGSHA_PASSWORD='12345678'; $env:AUNGSHA_PHONE='01772558896'; $env:SHURJOPAY_PIN='1234'; $env:SLOW_MO='400'; npm.cmd run marketplace-buy-flow -- --reporter=line
+$env:AUNGSHA_EMAIL='imran.bponi@gmail.com'; $env:AUNGSHA_PASSWORD='12345678'; $env:AUNGSHA_PHONE='01929918378'; $env:SHURJOPAY_PIN='1234'; $env:SLOW_MO='400'; npm.cmd run marketplace-buy-flow -- --reporter=line
 ```
 
 Script: `tests/project-buy-from-marketplace.spec.js` · Cases: **5** · Checkpoints: **21**
@@ -574,7 +574,7 @@ Downloaded files: `E:\Test\downloads\`
 ### 7. Project Buy → Sell to Aungsha
 
 ```powershell
-$env:AUNGSHA_EMAIL='imran.bponi@gmail.com'; $env:AUNGSHA_PASSWORD='12345678'; $env:AUNGSHA_PHONE='01772558896'; $env:SHURJOPAY_PIN='1234'; $env:SLOW_MO='400'; npm.cmd run aungsha-sell-flow -- --reporter=line
+$env:AUNGSHA_EMAIL='imran.bponi@gmail.com'; $env:AUNGSHA_PASSWORD='12345678'; $env:AUNGSHA_PHONE='01929918378'; $env:SHURJOPAY_PIN='1234'; $env:SLOW_MO='400'; npm.cmd run aungsha-sell-flow -- --reporter=line
 ```
 
 Script: `tests/project-buy-sell-to-aungsha.spec.js` · Cases: **5** · Checkpoints: **23**
@@ -596,9 +596,9 @@ Set-Location 'E:\Test'
 
 $env:AUNGSHA_EMAIL='imran.bponi@gmail.com'
 $env:AUNGSHA_PASSWORD='12345678'
-$env:AUNGSHA_PHONE='01770618575'
+$env:AUNGSHA_PHONE='01929918378'
 $env:SHURJOPAY_PIN='12121'
-$env:BKASH_SANDBOX_PHONE='01770618575'
+$env:BKASH_SANDBOX_PHONE='01929918378'
 $env:BKASH_SANDBOX_OTP='123456'
 $env:BKASH_SANDBOX_PIN='12121'
 $env:MARKETPLACE_ASKING_PRICE='1500'
@@ -643,7 +643,7 @@ Set-Location 'E:\Test'
 $env:AUNGSHA_EMAIL='imran.bponi@gmail.com'
 $env:AUNGSHA_PASSWORD='12345678'
 $env:WITHDRAWAL_ACCOUNT_HOLDER='Imran'
-$env:WITHDRAWAL_BKASH_NUMBER='01770618575'
+$env:WITHDRAWAL_BKASH_NUMBER='01929918378'
 $env:WITHDRAWAL_AMOUNT='1400'
 $env:WITHDRAWAL_FORCE_FULL_FLOW='true'
 
@@ -665,10 +665,10 @@ Set-Location 'E:\Test'
 
 $env:AUNGSHA_EMAIL='imran.bponi@gmail.com'
 $env:AUNGSHA_PASSWORD='12345678'
-$env:AUNGSHA_PHONE='01770618575'
+$env:AUNGSHA_PHONE='01929918378'
 $env:SHURJOPAY_PIN='12121'
 
-$env:BKASH_SANDBOX_PHONE='01770618575'
+$env:BKASH_SANDBOX_PHONE='01929918378'
 $env:BKASH_SANDBOX_OTP='123456'
 $env:BKASH_SANDBOX_PIN='12121'
 

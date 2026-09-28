@@ -10,7 +10,7 @@ const { PaymentSuccessPage } = require('../pages/TransactionsPage');
 const BASE_URL = 'https://staging.aungsha.com';
 const EMAIL = process.env.AUNGSHA_EMAIL;
 const PASSWORD = process.env.AUNGSHA_PASSWORD;
-const PHONE = process.env.AUNGSHA_PHONE;
+const PHONE = process.env.AUNGSHA_PHONE || '01929918378';
 const SANDBOX_PIN = process.env.SHURJOPAY_PIN || '1234';
 const DOWNLOAD_DIR = path.resolve(__dirname, '..', 'downloads');
 

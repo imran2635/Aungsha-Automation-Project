@@ -85,7 +85,8 @@ Most flow scripts run `--headed`. Payment + campaign use `--reporter=list`.
 
 **Auth / checkout:** `AUNGSHA_EMAIL`, `AUNGSHA_PASSWORD`, `AUNGSHA_PHONE`, `SHURJOPAY_PIN`
 
-**bKash sandbox:** `BKASH_SANDBOX_PHONE`, `BKASH_SANDBOX_OTP`, `BKASH_SANDBOX_PIN`
+**bKash sandbox:** `BKASH_SANDBOX_PHONE` (default `01929918378`), `BKASH_SANDBOX_OTP`, `BKASH_SANDBOX_PIN`  
+**Withdrawal bKash:** `WITHDRAWAL_BKASH_NUMBER` (default `01929918378`)
 
 **Campaign:** `CAMPAIGN_CODE` (default `DUSTUDENT10`), `SIGNUP_PASSWORD`, `SIGNUP_FULL_NAME`
 

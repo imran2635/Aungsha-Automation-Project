@@ -9,7 +9,7 @@ const { FundsPage } = require('../pages/FundsPage');
 const BASE_URL = 'https://staging.aungsha.com';
 const EMAIL = process.env.AUNGSHA_EMAIL;
 const PASSWORD = process.env.AUNGSHA_PASSWORD;
-const PHONE = process.env.AUNGSHA_PHONE;
+const PHONE = process.env.AUNGSHA_PHONE || '01929918378';
 const SANDBOX_PIN = process.env.SHURJOPAY_PIN || '1234';
 
 test.describe('Sell — Buy then Sell to Aungsha', () => {

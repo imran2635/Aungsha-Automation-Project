@@ -6,7 +6,7 @@ const { Cloud9CheckoutPage } = require('../pages/Cloud9CheckoutPage');
 
 const EMAIL = process.env.AUNGSHA_EMAIL;
 const PASSWORD = process.env.AUNGSHA_PASSWORD;
-const PHONE = process.env.AUNGSHA_PHONE;
+const PHONE = process.env.AUNGSHA_PHONE || '01929918378';
 const SANDBOX_PIN = process.env.SHURJOPAY_PIN || '1234';
 
 test.describe('Purchase — Cloud 9 Sandbox Buy Flow', () => {

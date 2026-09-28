@@ -6,7 +6,7 @@ const { SupportTicketsPage } = require('../pages/SupportTicketsPage');
 const BASE_URL = 'https://staging.aungsha.com';
 const EMAIL = process.env.AUNGSHA_EMAIL;
 const PASSWORD = process.env.AUNGSHA_PASSWORD;
-const PHONE = process.env.AUNGSHA_PHONE;
+const PHONE = process.env.AUNGSHA_PHONE || '01929918378';
 const CATEGORY = process.env.SUPPORT_CATEGORY || 'Other';
 
 test.describe('Customer Support Ticket Flow', () => {

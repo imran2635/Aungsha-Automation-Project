@@ -35,6 +35,7 @@ tomar sathe ja kotha bolechi and code base read kore skill file genarte koro jen
 - Never commit `.env`, credentials, or downloaded PDFs. Never invent new payment sandboxes — use existing page methods.
 - Staging mutates data (signup / buy / sell / withdrawal / referral / support) — warn before bulk runs.
 - Project under purchase tests is usually **Cloud 9 (Inani)** unless user says otherwise.
+- Default bKash number everywhere: `01929918378` (`BKASH_SANDBOX_PHONE` / `WITHDRAWAL_BKASH_NUMBER` / checkout phone fallbacks).
 
 ## Stack
 

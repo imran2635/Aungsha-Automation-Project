@@ -9,7 +9,7 @@ const { WithdrawalPage } = require('../pages/WithdrawalPage');
 const EMAIL = process.env.AUNGSHA_EMAIL;
 const PASSWORD = process.env.AUNGSHA_PASSWORD;
 const ACCOUNT_HOLDER = process.env.WITHDRAWAL_ACCOUNT_HOLDER;
-const BKASH_NUMBER = process.env.WITHDRAWAL_BKASH_NUMBER;
+const BKASH_NUMBER = process.env.WITHDRAWAL_BKASH_NUMBER || '01929918378';
 const OTP = process.env.WITHDRAWAL_OTP;
 const STATUS_ONLY = process.env.WITHDRAWAL_STATUS_ONLY === 'true';
 const FORCE_FULL_FLOW = process.env.WITHDRAWAL_FORCE_FULL_FLOW === 'true';

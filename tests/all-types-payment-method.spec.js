@@ -19,9 +19,9 @@ const { PaymentSuccessPage } = require('../pages/TransactionsPage');
 const BASE_URL = 'https://staging.aungsha.com';
 const EMAIL = process.env.AUNGSHA_EMAIL;
 const PASSWORD = process.env.AUNGSHA_PASSWORD;
-const PHONE = process.env.AUNGSHA_PHONE || process.env.BKASH_SANDBOX_PHONE || '01770618575';
+const PHONE = process.env.AUNGSHA_PHONE || process.env.BKASH_SANDBOX_PHONE || '01929918378';
 const SANDBOX_PIN = process.env.SHURJOPAY_PIN || '1234';
-const BKASH_PHONE = process.env.BKASH_SANDBOX_PHONE || '01770618575';
+const BKASH_PHONE = process.env.BKASH_SANDBOX_PHONE || '01929918378';
 const BKASH_OTP = process.env.BKASH_SANDBOX_OTP || '123456';
 const BKASH_PIN = process.env.BKASH_SANDBOX_PIN || '12121';
 const DOWNLOAD_DIR = path.resolve(__dirname, '..', 'downloads');
@@ -361,7 +361,7 @@ test.describe('Purchase — All Types Payment Method', () => {
     await allure.story('BOUNDARY: Exactly 11-digit BD mobile is accepted');
     await allure.tags('boundary', 'phone');
 
-    const validPhone = '01770618575';
+    const validPhone = '01929918378';
     expect(validPhone.length).toBe(11);
 
     const { checkout } = await loginAndOpenCheckoutWithoutDrawer(page);
@@ -383,7 +383,7 @@ test.describe('Purchase — All Types Payment Method', () => {
     await allure.story('BOUNDARY: 12-digit phone is above max length');
     await allure.tags('boundary', 'phone');
 
-    const longPhone = '017706185750'; // 12 digits
+    const longPhone = '019299183780'; // 12 digits
     expect(longPhone.length).toBe(12);
 
     const { checkout } = await loginAndOpenCheckoutWithoutDrawer(page);
@@ -542,7 +542,7 @@ test.describe('Purchase — All Types Payment Method', () => {
     await allure.story('BOUNDARY: Country-code phone exceeds local 11-digit max');
     await allure.tags('boundary', 'phone');
 
-    const withCountry = '8801770618575'; // 13 digits
+    const withCountry = '8801929918378'; // 13 digits
     expect(withCountry.length).toBe(13);
 
     const { checkout } = await loginAndOpenCheckoutWithoutDrawer(page);
@@ -795,7 +795,7 @@ test.describe('Purchase — All Types Payment Method', () => {
     await allure.story('ECPA: Valid BD mobile partition opens payment drawer');
     await allure.tags('ecpa', 'phone', 'critical');
 
-    const validClassPhone = '01770618575';
+    const validClassPhone = '01929918378';
     expect(/^01\d{9}$/.test(validClassPhone)).toBe(true);
 
     const { checkout } = await loginAndOpenCheckoutWithoutDrawer(page);

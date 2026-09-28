@@ -9,7 +9,7 @@ const { ListingsPage } = require('../pages/ListingsPage');
 
 const EMAIL = process.env.AUNGSHA_EMAIL;
 const PASSWORD = process.env.AUNGSHA_PASSWORD;
-const PHONE = process.env.AUNGSHA_PHONE;
+const PHONE = process.env.AUNGSHA_PHONE || '01929918378';
 const SANDBOX_PIN = process.env.SHURJOPAY_PIN || '1234';
 const ASKING_PRICE = process.env.MARKETPLACE_ASKING_PRICE || '1500';
 const FORMATTED_ASKING_PRICE = Number(ASKING_PRICE).toLocaleString('en-US');
