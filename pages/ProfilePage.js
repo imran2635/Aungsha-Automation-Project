@@ -6,15 +6,7 @@ const ME_API = 'https://staging-ssr.aungsha.com/api/v1.0/users/me';
 
 class ProfilePage extends BasePage {
   async dismissCookies() {
-    const accept = this.page
-      .getByRole('region', { name: /cookie/i })
-      .getByRole('button', { name: /^accept$/i })
-      .or(this.page.getByRole('button', { name: /^accept$/i }))
-      .first();
-    if (await accept.isVisible({ timeout: 2_500 }).catch(() => false)) {
-      await accept.click({ force: true }).catch(() => {});
-      await expect(accept).toBeHidden({ timeout: 8_000 }).catch(() => {});
-    }
+    await this.handleCookieConsent();
   }
 
   async open() {

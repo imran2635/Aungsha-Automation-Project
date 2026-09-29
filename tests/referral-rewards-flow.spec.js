@@ -28,6 +28,39 @@ function createCheckoutPage(page) {
   return new Cloud9CheckoutPage(page, BASE_URL, { phone: PHONE, sandboxPin: SANDBOX_PIN });
 }
 
+function createCheckpointTracker() {
+  const results = { passed: 0, failed: 0, steps: [] };
+
+  async function checkpoint(name, fn) {
+    try {
+      await fn();
+      results.passed += 1;
+      results.steps.push({ name, status: 'PASSED' });
+      console.log(`✅ ${name}: PASSED`);
+    } catch (error) {
+      results.failed += 1;
+      results.steps.push({ name, status: 'FAILED', error: error.message || String(error) });
+      console.log(`❌ ${name}: FAILED — ${error.message || error}`);
+      throw error;
+    }
+  }
+
+  function printSummary() {
+    const total = results.passed + results.failed;
+    console.log('\n========== REFERRAL FLOW SUMMARY ==========');
+    console.log(`Passed : ${results.passed}`);
+    console.log(`Failed : ${results.failed}`);
+    console.log(`Total  : ${total}`);
+    for (const step of results.steps) {
+      const mark = step.status === 'PASSED' ? '✅' : '❌';
+      console.log(`  ${mark} ${step.name}`);
+    }
+    console.log('===========================================\n');
+  }
+
+  return { checkpoint, printSummary, results };
+}
+
 test.describe('Referral Rewards', () => {
   test('complete referral rewards flow through referred purchase', async ({ page, browser, request }) => {
     test.setTimeout(900_000);
@@ -49,91 +82,119 @@ test.describe('Referral Rewards', () => {
     const auth = new AuthPage(page, BASE_URL);
     const referralRewards = new ReferralRewardsPage(page, BASE_URL);
     const mailClient = new MailTmClient(request);
+    const { checkpoint, printSummary } = createCheckpointTracker();
 
     let before;
     let referralUrl;
-    await allure.step('Login as referrer and capture referral baseline', async () => {
-      await auth.login(REFERRER_EMAIL, REFERRER_PASSWORD);
-      await referralRewards.open();
-      before = await referralRewards.readMetrics();
-      referralUrl = await referralRewards.captureReferralUrl();
-      await allure.parameter('referralUrl', referralUrl);
-      console.log(`✅ Referral link captured; baseline=${JSON.stringify(before)}`);
-    });
 
-    if (STATUS_ONLY) {
-      await allure.step('Status-only mode — report metrics and exit', async () => {
-        console.log(`Referral rewards status=${JSON.stringify(before)}`);
+    try {
+      await allure.step('Login as referrer and capture referral baseline', async () => {
+        await checkpoint('1. Referrer login', async () => {
+          await auth.login(REFERRER_EMAIL, REFERRER_PASSWORD);
+        });
+        await checkpoint('2. Open Referral Rewards + capture baseline & link', async () => {
+          await referralRewards.open();
+          before = await referralRewards.readMetrics();
+          referralUrl = await referralRewards.captureReferralUrl();
+          await allure.parameter('referralUrl', referralUrl);
+          console.log(`   baseline=${JSON.stringify(before)}`);
+          console.log(`   referralUrl=${referralUrl}`);
+        });
       });
-      return;
-    }
 
-    if (RECOVER_EMAIL) {
-      await allure.step('Recover referred account verification and purchase', async () => {
-        const recoveryContext = await browser.newContext();
-        recoveryContext.setDefaultTimeout(15_000);
-        const recoveryPage = await recoveryContext.newPage();
-        try {
-          const recoveryAuth = new AuthPage(recoveryPage, BASE_URL);
-          const recoveryVerification = new VerificationPage(recoveryPage, BASE_URL);
-          await recoveryAuth.login(RECOVER_EMAIL, REFERRED_PASSWORD);
-          if (RECOVER_OTP) {
-            await recoveryVerification.complete({ otp: RECOVER_OTP });
-            await recoveryAuth.login(RECOVER_EMAIL, REFERRED_PASSWORD);
-          }
-          await createCheckoutPage(recoveryPage).buy();
-          console.log('Recovered referral verification and purchase: PASSED');
-        } finally {
-          await recoveryContext.close();
-        }
-      });
-    }
-
-    for (let index = 1; index <= REFERRAL_COUNT; index += 1) {
-      await allure.step(`Referral ${index}/${REFERRAL_COUNT}: signup, OTP, and Cloud 9 purchase`, async () => {
-        const referredContext = await browser.newContext();
-        referredContext.setDefaultTimeout(15_000);
-        const signupPage = await referredContext.newPage();
-        try {
-          const mailbox = await mailClient.createTempMailbox();
-          const tempEmail = mailbox.address;
-          await allure.parameter(`referredEmail_${index}`, tempEmail);
-          console.log(`Referral ${index}/${REFERRAL_COUNT}: temporary mailbox ready`);
-
-          const signUp = new SignUpPage(signupPage, BASE_URL, {
-            firstName: REFERRED_FIRST_NAME,
-            lastName: REFERRED_LAST_NAME,
-            password: REFERRED_PASSWORD,
+      if (STATUS_ONLY) {
+        await allure.step('Status-only mode — report metrics and exit', async () => {
+          await checkpoint('Status-only metrics report', async () => {
+            console.log(`   Referral rewards status=${JSON.stringify(before)}`);
           });
-          const verification = new VerificationPage(signupPage, BASE_URL);
-          const referredAuth = new AuthPage(signupPage, BASE_URL);
+        });
+        return;
+      }
 
-          await signUp.signUpWithReferral(referralUrl, tempEmail);
-          const verificationData = await mailClient.waitForVerificationMail(mailbox, signupPage);
-          if (!(await signUp.isVerificationVisible())) {
-            await referredAuth.login(tempEmail, REFERRED_PASSWORD);
+      if (RECOVER_EMAIL) {
+        await allure.step('Recover referred account verification and purchase', async () => {
+          await checkpoint('Recover referred verification + Cloud 9 purchase', async () => {
+            const recoveryContext = await browser.newContext();
+            recoveryContext.setDefaultTimeout(15_000);
+            const recoveryPage = await recoveryContext.newPage();
+            try {
+              const recoveryAuth = new AuthPage(recoveryPage, BASE_URL);
+              const recoveryVerification = new VerificationPage(recoveryPage, BASE_URL);
+              await recoveryAuth.login(RECOVER_EMAIL, REFERRED_PASSWORD);
+              if (RECOVER_OTP) {
+                await recoveryVerification.complete({ otp: RECOVER_OTP });
+                await recoveryAuth.login(RECOVER_EMAIL, REFERRED_PASSWORD);
+              }
+              await createCheckoutPage(recoveryPage).buy();
+            } finally {
+              await recoveryContext.close();
+            }
+          });
+        });
+      }
+
+      for (let index = 1; index <= REFERRAL_COUNT; index += 1) {
+        await allure.step(`Referral ${index}/${REFERRAL_COUNT}: signup, OTP, and Cloud 9 purchase`, async () => {
+          const referredContext = await browser.newContext();
+          referredContext.setDefaultTimeout(15_000);
+          const signupPage = await referredContext.newPage();
+          try {
+            let mailbox;
+            let tempEmail;
+
+            await checkpoint(`3.${index} Create temp mailbox`, async () => {
+              mailbox = await mailClient.createTempMailbox();
+              tempEmail = mailbox.address;
+              await allure.parameter(`referredEmail_${index}`, tempEmail);
+              console.log(`   email=${tempEmail}`);
+            });
+
+            const signUp = new SignUpPage(signupPage, BASE_URL, {
+              firstName: REFERRED_FIRST_NAME,
+              lastName: REFERRED_LAST_NAME,
+              password: REFERRED_PASSWORD,
+            });
+            const verification = new VerificationPage(signupPage, BASE_URL);
+            const referredAuth = new AuthPage(signupPage, BASE_URL);
+
+            await checkpoint(`4.${index} Cookie Accept + signup via referral link`, async () => {
+              await signUp.signUpWithReferral(referralUrl, tempEmail);
+            });
+
+            await checkpoint(`5.${index} Email OTP verification`, async () => {
+              const verificationData = await mailClient.waitForVerificationMail(mailbox, signupPage);
+              if (!(await signUp.isVerificationVisible())) {
+                await referredAuth.login(tempEmail, REFERRED_PASSWORD);
+              }
+              await verification.complete(verificationData);
+            });
+
+            await checkpoint(`6.${index} Referred login + Cloud 9 purchase`, async () => {
+              await referredAuth.login(tempEmail, REFERRED_PASSWORD);
+              await createCheckoutPage(signupPage).buy();
+            });
+          } finally {
+            await referredContext.close();
           }
-          await verification.complete(verificationData);
-          await referredAuth.login(tempEmail, REFERRED_PASSWORD);
-          await createCheckoutPage(signupPage).buy();
-          console.log(`Referral ${index}/${REFERRAL_COUNT}: signup, OTP, and Cloud 9 purchase PASSED`);
-        } finally {
-          await referredContext.close();
-        }
-      });
-    }
+        });
+      }
 
-    await allure.step('Verify referral rewards metrics increased', async () => {
-      await page.bringToFront();
-      const after = await referralRewards.waitForMetricsIncrease(
-        before,
-        REFERRAL_COUNT,
-        RECOVER_EMAIL ? 1 : 0,
-      );
-      await allure.parameter('metricsBefore', JSON.stringify(before));
-      await allure.parameter('metricsAfter', JSON.stringify(after));
-      console.log(`Referral rewards updated; before=${JSON.stringify(before)} after=${JSON.stringify(after)}`);
-      console.log(`Full Referral Rewards flow completed for ${REFERRAL_COUNT} accounts: PASSED`);
-    });
+      await allure.step('Verify referral rewards metrics increased', async () => {
+        await checkpoint('7. Referral metrics increased after purchase', async () => {
+          await page.bringToFront();
+          const after = await referralRewards.waitForMetricsIncrease(
+            before,
+            REFERRAL_COUNT,
+            RECOVER_EMAIL ? 1 : 0,
+          );
+          await allure.parameter('metricsBefore', JSON.stringify(before));
+          await allure.parameter('metricsAfter', JSON.stringify(after));
+          console.log(`   before=${JSON.stringify(before)}`);
+          console.log(`   after=${JSON.stringify(after)}`);
+        });
+      });
+    } finally {
+      printSummary();
+    }
   });
 });

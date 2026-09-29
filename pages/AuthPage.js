@@ -7,19 +7,6 @@ class AuthPage extends BasePage {
     await expect(this.page).toHaveURL(/\/en\/sign-in(?:\?|$)/);
   }
 
-  async handleCookieConsent() {
-    await this.page.waitForTimeout(800);
-    const acceptCookies = this.page
-      .getByRole('region', { name: /cookie/i })
-      .getByRole('button', { name: /^accept$/i })
-      .or(this.page.getByRole('button', { name: /^accept$/i }))
-      .first();
-    if (await acceptCookies.isVisible({ timeout: 3_000 }).catch(() => false)) {
-      await acceptCookies.click({ force: true });
-      await expect(acceptCookies).toBeHidden({ timeout: 8_000 }).catch(() => {});
-    }
-  }
-
   async fillCredentials(email, password) {
     const emailInput = this.page.getByPlaceholder(/enter your email address/i);
     for (let i = 0; i < 5; i += 1) {

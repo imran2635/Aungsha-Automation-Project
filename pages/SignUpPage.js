@@ -21,15 +21,7 @@ class SignUpPage extends BasePage {
   }
 
   async dismissCookies() {
-    const accept = this.page
-      .getByRole('region', { name: /cookie/i })
-      .getByRole('button', { name: /^accept$/i })
-      .or(this.page.getByRole('button', { name: /^accept$/i }))
-      .first();
-    if (await accept.isVisible({ timeout: 3_000 }).catch(() => false)) {
-      await accept.click({ force: true }).catch(() => {});
-      await expect(accept).toBeHidden({ timeout: 8_000 }).catch(() => {});
-    }
+    await this.handleCookieConsent();
   }
 
   /** Signup defaults to Phone — switch to Email and wait for email input. */
@@ -127,34 +119,10 @@ class SignUpPage extends BasePage {
     await this.goto(referralUrl);
     await expect(this.page).toHaveURL(/\/sign-up.*ref=/i);
     await this.page.waitForTimeout(1_500);
+    await this.dismissCookies();
+    await this.createAccountWithEmail(email, this.password);
 
-    const acceptCookies = this.page.getByRole('button', { name: /^accept$/i });
-    if (await acceptCookies.isVisible().catch(() => false)) {
-      await acceptCookies.click();
-    }
-
-    const emailTab = this.page.getByRole('tab', { name: /^email$/i });
-    await expect(emailTab).toBeVisible();
-    await emailTab.click();
-    await expect(emailTab).toHaveAttribute('aria-selected', 'true');
-
-    const emailInput = this.page.locator('input[name="email_address"]:visible');
-    await expect(emailInput).toBeVisible();
-
-    await this.page.locator('input[name="firstName"]:visible').fill(this.firstName);
-    await this.page.locator('input[name="lastName"]:visible').fill(this.lastName);
-    await emailInput.fill(email);
-    await this.page.locator('input[name="password"]:visible').fill(this.password);
-
-    const confirmPassword = this.page.getByPlaceholder(/re-enter|confirm.*password/i);
-    if (await confirmPassword.isVisible().catch(() => false)) {
-      await confirmPassword.fill(this.password);
-    }
-
-    await this.page.getByRole('checkbox').check();
-    await this.page.getByRole('button', { name: /^continue$/i }).click();
-
-    if (await this.verificationHeading.isVisible({ timeout: 20_000 }).catch(() => false)) return;
+    if (await this.verificationHeading.isVisible({ timeout: 5_000 }).catch(() => false)) return;
     console.log('Verification screen was not shown; checking the mailbox without resubmitting signup');
   }
 
