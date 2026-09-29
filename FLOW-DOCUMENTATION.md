@@ -46,11 +46,12 @@ npx.cmd playwright install chromium
 | 9 | `marketplace-buy-flow` | project-buy-from-marketplace.spec.js | 5 |
 | 10 | `aungsha-sell-flow` | project-buy-sell-to-aungsha.spec.js | 5 |
 | 11 | `marketplace-flow` | project-buy-sell-to-marketplace.spec.js | 1 |
-| 12 | `withdrawal-flow` | withdrawal-flow.spec.js | 1 |
-| 13 | `referral-flow` | referral-rewards-flow.spec.js | 1 |
-| 14 | `holding-details` | holding-details.spec.js | 1 |
-| 15 | `my-profile-password-flow` | my-profile-info-add-password-change-login-flow.spec.js | 1 |
-| | **Total** | | **53** |
+| 12 | `marketplace-my-listing-flow` | marketplace-my-listing-flow.spec.js | 1 |
+| 13 | `withdrawal-flow` | withdrawal-flow.spec.js | 1 |
+| 14 | `referral-flow` | referral-rewards-flow.spec.js | 1 |
+| 15 | `holding-details` | holding-details.spec.js | 1 |
+| 16 | `my-profile-password-flow` | my-profile-info-add-password-change-login-flow.spec.js | 1 |
+| | **Total** | | **54** |
 
 ---
 
@@ -633,6 +634,40 @@ Script: `tests/project-buy-sell-to-marketplace.spec.js` · Cases: 1 · Checkpoin
 ```
 
 To change asking price: `$env:MARKETPLACE_ASKING_PRICE='1800'`
+
+---
+
+### 8b. Marketplace My Listing Flow (Buy → List @ 2000 → My Listings)
+
+```powershell
+Set-Location 'E:\Test'
+
+$env:AUNGSHA_EMAIL='imran.bponi@gmail.com'
+$env:AUNGSHA_PASSWORD='12345678'
+$env:AUNGSHA_PHONE='01929918378'
+$env:SHURJOPAY_PIN='1234'
+$env:MARKETPLACE_ASKING_PRICE='2000'
+$env:SLOW_MO='400'
+
+npm.cmd run marketplace-my-listing-flow
+```
+
+Script: `tests/marketplace-my-listing-flow.spec.js` · Cases: 1 · Checkpoints: **12**
+
+```
+✅ 1.  Cookie consent handled
+✅ 2.  Login successful
+✅ 3.  Cloud 9 project details opened
+✅ 4.  Checkout page opened
+✅ 5.  Cloud 9 unit purchased via ShurjoPay
+✅ 6.  My Portfolio opened
+✅ 7.  View Details clicked — Cloud 9 holding opened
+✅ 8.  Go to marketplace selected
+✅ 9.  Asking price filled (BDT 2000)
+✅ 10. Sell Shares clicked — listing created
+✅ 11. My Listings opened
+✅ 12. Active listing visible at BDT 2,000
+```
 
 ---
 

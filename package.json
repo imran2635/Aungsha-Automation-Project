@@ -13,6 +13,7 @@
     "aungsha-sell-flow": "playwright test tests/project-buy-sell-to-aungsha.spec.js --headed",
     "marketplace-flow": "playwright test tests/project-buy-sell-to-marketplace.spec.js --headed",
     "marketplace-buy-flow": "playwright test tests/project-buy-from-marketplace.spec.js --headed",
+    "marketplace-my-listing-flow": "playwright test tests/marketplace-my-listing-flow.spec.js --headed --reporter=list",
     "holding-details": "playwright test tests/holding-details.spec.js --headed",
     "referral-flow": "playwright test tests/referral-rewards-flow.spec.js --headed",
     "support-ticket-flow": "playwright test tests/customer-support-ticket-flow.spec.js --headed",
