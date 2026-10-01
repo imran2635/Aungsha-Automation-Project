@@ -756,19 +756,23 @@ $env:SLOW_MO='400'
 npm.cmd run checkout-referral-bkash
 ```
 
-Script: `tests/checkout-referral-flow.spec.js` · Cases: **2** · Checkpoints: **7** per payment method
+Script: `tests/checkout-referral-flow.spec.js` · Cases: **2** · Checkpoints: **9** per payment method
 
 ```
-✅ 1. Referrer account created
-✅ 2. Referral code captured
-✅ 3. Buyer account created
-✅ 4. Buyer referral baseline captured
-✅ 5. Checkout + Referral Code applied + purchase
-✅ 6. Buyer 5% reward OK
-✅ 7. Referrer 5% commission OK
+✅ 1. Referrer account created (Window-1)
+✅ 2. Referral code captured (Window-1)
+✅ 3. Buyer account created (Window-2)
+✅ 4. Checkout opened + referral code applied (Window-2)
+✅ 5. Buyer 5% reward verified on checkout (Window-2)
+✅ 6. Cloud 9 purchased (Window-2)
+✅ 7. Invoice downloaded (Window-2)
+✅ 8. Ownership Certificate downloaded (Window-2)
+✅ 9. Referrer 5% commission verified (Window-1)
 ```
 
----
+Note: Buyer **5%** is asserted on the **checkout page** after Apply (not Funds / Referral Rewards).
+Referrer **5%** is asserted on Referral Rewards after purchase.
+Downloads save under `downloads/`.---
 
 ### 11. My Profile — Info Add + Password Change + Re-login
 

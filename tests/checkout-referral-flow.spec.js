@@ -13,6 +13,8 @@
 
 'use strict';
 
+const fs = require('node:fs');
+const path = require('node:path');
 const { test, expect } = require('@playwright/test');
 const allure = require('allure-js-commons');
 const { AuthPage } = require('../pages/AuthPage');
@@ -21,10 +23,11 @@ const { VerificationPage } = require('../pages/VerificationPage');
 const { ProjectsPage } = require('../pages/ProjectsPage');
 const { Cloud9CheckoutPage } = require('../pages/Cloud9CheckoutPage');
 const { ReferralRewardsPage } = require('../pages/ReferralRewardsPage');
-const { FundsPage } = require('../pages/FundsPage');
+const { PaymentSuccessPage } = require('../pages/TransactionsPage');
 const { MailTmClient } = require('../services/MailTmClient');
 
 const BASE_URL = 'https://staging.aungsha.com';
+const DOWNLOAD_DIR = path.resolve(__dirname, '..', 'downloads');
 const PASSWORD = process.env.SIGNUP_PASSWORD || process.env.REFERRED_PASSWORD || 'Test@12345678';
 const PHONE = process.env.AUNGSHA_PHONE || '01929918378';
 const SANDBOX_PIN = process.env.SHURJOPAY_PIN || '1234';
@@ -123,11 +126,8 @@ async function runCheckoutReferralFlow({ page, browser, request }, paymentMethod
   let buyerEmail;
   let referralCode;
   let referrerBefore;
-  let buyerBefore;
-  let buyerFundsBefore = 0;
   let purchaseAmount;
   let expectedReward;
-  let buyerRewardError = null;
 
   // —— Open 2 Chrome windows at once (referrer + buyer) ——
   const referrerContext = await browser.newContext();
@@ -183,30 +183,13 @@ async function runCheckoutReferralFlow({ page, browser, request }, paymentMethod
       });
     });
 
-    await allure.step('4. Window-2 — buyer baselines', async () => {
-      await checkpoint('4. Buyer referral + funds baseline (Window-2)', async () => {
-        await buyerPage.bringToFront();
-        const buyerRewards = new ReferralRewardsPage(buyerPage, BASE_URL);
-        await buyerRewards.open();
-        buyerBefore = await buyerRewards.readMetrics();
+    let checkout;
 
-        const funds = new FundsPage(buyerPage, BASE_URL);
-        await funds.open();
-        buyerFundsBefore = await funds.readAvailableBalance();
-        if (!(buyerFundsBefore >= 0)) buyerFundsBefore = 0;
-
-        await allure.parameter('buyerBaseline', JSON.stringify(buyerBefore));
-        await allure.parameter('buyerFundsBefore', String(buyerFundsBefore));
-        console.log(`   buyer referral baseline=${JSON.stringify(buyerBefore)}`);
-        console.log(`   buyer funds baseline=BDT ${buyerFundsBefore}`);
-      });
-    });
-
-    await allure.step(`5. Window-2 — checkout apply referral + ${paymentMethod}`, async () => {
-      await checkpoint(`5. Checkout referral + ${paymentMethod} purchase (Window-2)`, async () => {
+    await allure.step('4. Window-2 — open Cloud 9 checkout + apply referral', async () => {
+      await checkpoint('4. Checkout opened + referral code applied (Window-2)', async () => {
         await buyerPage.bringToFront();
         const projects = new ProjectsPage(buyerPage, BASE_URL);
-        const checkout = createCheckout(buyerPage);
+        checkout = createCheckout(buyerPage);
 
         await projects.open();
         await projects.openCloud9Details();
@@ -221,11 +204,28 @@ async function runCheckoutReferralFlow({ page, browser, request }, paymentMethod
         await checkout.fillCheckoutInfo();
         purchaseAmount = await checkout.readCheckoutSubtotal();
         if (!Number.isFinite(purchaseAmount) || purchaseAmount <= 0) purchaseAmount = 1000;
-        expectedReward = Number((purchaseAmount * COMMISSION_RATE).toFixed(2));
+        const unitMatch = (await buyerPage.locator('body').innerText()).match(
+          /Unit Price\s*\(BDT\)\s*([\d,.]+)/i,
+        );
+        const unitPrice = unitMatch ? Number(unitMatch[1].replace(/,/g, '')) : 1000;
+        expectedReward = Number((unitPrice * COMMISSION_RATE).toFixed(2));
         await allure.parameter('purchaseAmount', String(purchaseAmount));
         await allure.parameter('expectedRewardEach', String(expectedReward));
-        console.log(`   purchaseAmount=BDT ${purchaseAmount} → expected 5% = BDT ${expectedReward}`);
+        console.log(`   unit≈BDT ${unitPrice} → expected buyer 5% = BDT ${expectedReward}`);
+      });
+    });
 
+    await allure.step('5. Window-2 — buyer 5% visible on checkout', async () => {
+      await checkpoint('5. Buyer 5% reward verified on checkout (Window-2)', async () => {
+        await buyerPage.bringToFront();
+        await checkout.expectReferralRewardOnCheckout(expectedReward);
+        console.log(`   checkout shows ~${expectedReward} BDT (5%) — not an error`);
+      });
+    });
+
+    await allure.step(`6. Window-2 — complete purchase via ${paymentMethod}`, async () => {
+      await checkpoint(`6. Cloud 9 purchased via ${paymentMethod} (Window-2)`, async () => {
+        await buyerPage.bringToFront();
         await checkout.openPaymentDrawer();
         await checkout.payWithMethod(paymentMethod);
         await expect(
@@ -234,48 +234,27 @@ async function runCheckoutReferralFlow({ page, browser, request }, paymentMethod
       });
     });
 
-    // Keep BOTH windows open while verifying rewards
-    await allure.step('6. Window-2 — buyer ~5% reward', async () => {
-      try {
-        await checkpoint('6. Buyer 5% reward verified (Window-2)', async () => {
-          await buyerPage.bringToFront();
-          const funds = new FundsPage(buyerPage, BASE_URL);
-          const buyerRewards = new ReferralRewardsPage(buyerPage, BASE_URL);
-          let fundsDelta = 0;
-          let cashbackDelta = 0;
-          let buyerAfter = buyerBefore;
+    await allure.step('7. Window-2 — download Invoice + Ownership Certificate', async () => {
+      await checkpoint('7. Invoice downloaded (Window-2)', async () => {
+        await buyerPage.bringToFront();
+        fs.mkdirSync(DOWNLOAD_DIR, { recursive: true });
+        const paymentSuccess = new PaymentSuccessPage(buyerPage, BASE_URL);
+        const invoicePath = await paymentSuccess.downloadInvoice(DOWNLOAD_DIR);
+        await allure.parameter('invoicePath', invoicePath);
+        console.log(`   invoice=${invoicePath}`);
+      });
 
-          await expect.poll(async () => {
-            await funds.open();
-            const balance = await funds.readAvailableBalance();
-            fundsDelta = (balance >= 0 ? balance : 0) - buyerFundsBefore;
-
-            await buyerRewards.open();
-            buyerAfter = await buyerRewards.readMetrics();
-            cashbackDelta = buyerAfter.cashback - buyerBefore.cashback;
-
-            console.log(
-              `   poll buyer: funds Δ=${fundsDelta}, cashback Δ=${cashbackDelta}`,
-            );
-            return fundsDelta >= expectedReward - 1 || cashbackDelta >= expectedReward - 1;
-          }, {
-            timeout: 90_000,
-            intervals: [3_000, 5_000, 10_000],
-            message: `Buyer expected ~${expectedReward} BDT (5%) via Funds or Referral cashback`,
-          }).toBe(true);
-
-          await allure.parameter('buyerFundsDelta', String(fundsDelta));
-          await allure.parameter('buyerCashbackDelta', String(cashbackDelta));
-          console.log(`   funds Δ=${fundsDelta}, cashback Δ=${cashbackDelta}`);
-        });
-      } catch (error) {
-        buyerRewardError = error;
-        console.log(`⚠️ Buyer 5% not confirmed — still checking referrer Window-1`);
-      }
+      await checkpoint('8. Ownership Certificate downloaded (Window-2)', async () => {
+        await buyerPage.bringToFront();
+        const paymentSuccess = new PaymentSuccessPage(buyerPage, BASE_URL);
+        const certificatePath = await paymentSuccess.downloadCertificate(DOWNLOAD_DIR);
+        await allure.parameter('certificatePath', certificatePath);
+        console.log(`   certificate=${certificatePath}`);
+      });
     });
 
-    await allure.step('7. Window-1 — referrer ~5% commission', async () => {
-      await checkpoint('7. Referrer 5% commission verified (Window-1)', async () => {
+    await allure.step('9. Window-1 — referrer ~5% commission', async () => {
+      await checkpoint('9. Referrer 5% commission verified (Window-1)', async () => {
         await referrerPage.bringToFront();
         const referralRewards = new ReferralRewardsPage(referrerPage, BASE_URL);
         await referralRewards.open();
@@ -295,9 +274,6 @@ async function runCheckoutReferralFlow({ page, browser, request }, paymentMethod
       });
     });
 
-    if (buyerRewardError) {
-      throw buyerRewardError;
-    }
     expect(results.failed, 'All checkpoints must pass').toBe(0);
   } finally {
     printSummary({

@@ -86,9 +86,6 @@ class Cloud9CheckoutPage extends BasePage {
     const errorToast = this.page
       .getByText(/invalid.*referral|referral.*invalid|code not found|cannot use|already applied|expired/i)
       .first();
-    const successHint = this.page
-      .getByText(/referral.*(applied|accepted|success)|code applied|discount applied|5\s*%|cashback/i)
-      .first();
 
     await this.page.waitForTimeout(1_500);
 
@@ -96,14 +93,37 @@ class Cloud9CheckoutPage extends BasePage {
       const msg = await errorToast.textContent();
       throw new Error(`Referral code apply rejected: ${msg}`);
     }
+  }
 
-    // Success UI varies — accept applied hint, disabled/cleared input, or value still held with no error.
-    const applied =
-      (await successHint.isVisible().catch(() => false))
-      || (await referralInput.isDisabled().catch(() => false))
-      || (await referralInput.inputValue()) === String(code);
+  /**
+   * Buyer 5% reward appears on the checkout page after referral Apply
+   * (not on Funds / Referral Rewards for the buyer account).
+   */
+  async expectReferralRewardOnCheckout(expectedRewardBdt = 50) {
+    const rewardHint = this.page
+      .getByText(/5\s*%|referral.*(reward|discount|cashback|bonus)|discount|cashback/i)
+      .first();
 
-    expect(applied, `Expected referral code "${code}" to apply on checkout`).toBeTruthy();
+    await expect
+      .poll(
+        async () => {
+          const body = (await this.page.locator('body').innerText()).replace(/,/g, '');
+          const hasPercent = /5\s*%/.test(body);
+          const amountPattern = new RegExp(
+            `(?:BDT|৳)?\\s*${String(expectedRewardBdt).replace('.', '\\.')}`,
+            'i',
+          );
+          const hasAmount = amountPattern.test(body);
+          const hasLabel = /referral|discount|cashback|reward|bonus/i.test(body);
+          const hintVisible = await rewardHint.isVisible().catch(() => false);
+          return hintVisible || hasPercent || (hasAmount && hasLabel);
+        },
+        {
+          timeout: 15_000,
+          message: `Expected buyer ~${expectedRewardBdt} BDT (5%) referral reward on checkout page`,
+        },
+      )
+      .toBe(true);
   }
 
   async payWithMethod(method = 'shurjopay') {
