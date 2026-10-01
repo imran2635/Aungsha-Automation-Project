@@ -2,7 +2,10 @@
 
 End-to-end Playwright automation for the Aungsha real estate FinTech platform.
 
-## Flow Demo Videos
+[![Playwright](https://img.shields.io/badge/Playwright-1.54-45ba4b?logo=playwright&logoColor=white)](https://playwright.dev)
+[![Node.js](https://img.shields.io/badge/Node.js-18%2B-339933?logo=node.js&logoColor=white)](https://nodejs.org)
+[![Allure](https://img.shields.io/badge/Reporting-Allure-5251CC)](https://docs.qameta.io/allure/)
+[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20PowerShell-0078D6?logo=windows&logoColor=white)](#)
 
 Watch the recorded executions of all automated flows in the public Google
 Drive folder:
