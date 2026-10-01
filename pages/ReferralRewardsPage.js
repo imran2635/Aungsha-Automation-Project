@@ -41,6 +41,36 @@ class ReferralRewardsPage extends BasePage {
     return referralUrl;
   }
 
+  extractCodeFromUrl(referralUrl) {
+    const match = String(referralUrl || '').match(/[?&]ref=([^&\s#]+)/i);
+    return match ? decodeURIComponent(match[1]) : null;
+  }
+
+  async captureReferralCode() {
+    const url = await this.captureReferralUrl();
+    const code = this.extractCodeFromUrl(url);
+    expect(code, 'Expected ref= code in referral URL').toBeTruthy();
+    return { url, code };
+  }
+
+  /** Wait until cashback increases by ~expectedRewardBdt (e.g. 5% of purchase). */
+  async waitForCashbackReward(before, expectedRewardBdt, { minSuccessfulIncrease = 0, tolerance = 1 } = {}) {
+    let after;
+    await expect.poll(async () => {
+      await this.page.reload({ waitUntil: 'domcontentloaded' });
+      after = await this.readMetrics();
+      const delta = after.cashback - before.cashback;
+      const rewardOk = delta >= expectedRewardBdt - tolerance;
+      const successOk = after.successful >= before.successful + minSuccessfulIncrease;
+      return rewardOk && successOk;
+    }, {
+      timeout: 120_000,
+      intervals: [2_000, 5_000, 10_000],
+      message: `Expected cashback +~${expectedRewardBdt} BDT (5%) from baseline ${before.cashback}`,
+    }).toBe(true);
+    return after;
+  }
+
   async waitForMetricsIncrease(before, referralCount, recoverEmailBonus = 0) {
     let after;
     await expect.poll(async () => {

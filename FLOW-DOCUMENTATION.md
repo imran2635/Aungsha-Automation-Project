@@ -4,9 +4,9 @@ Based on `tests/*.spec.js` and `package.json` scripts.
 
 | Report item | Count |
 |---|---:|
-| Test files | **15** |
-| Playwright test cases | **53** |
-| npm flow scripts | **15** |
+| Test files | **16** |
+| Playwright test cases | **56** |
+| npm flow scripts | **18** |
 
 ---
 
@@ -49,9 +49,11 @@ npx.cmd playwright install chromium
 | 12 | `marketplace-my-listing-flow` | marketplace-my-listing-flow.spec.js | 1 |
 | 13 | `withdrawal-flow` | withdrawal-flow.spec.js | 1 |
 | 14 | `referral-flow` | referral-rewards-flow.spec.js | 1 |
-| 15 | `holding-details` | holding-details.spec.js | 1 |
-| 16 | `my-profile-password-flow` | my-profile-info-add-password-change-login-flow.spec.js | 1 |
-| | **Total** | | **54** |
+| 15 | `checkout-referral-shurjopay` | checkout-referral-flow.spec.js (ShurjoPay) | 1 |
+| 16 | `checkout-referral-bkash` | checkout-referral-flow.spec.js (bKash) | 1 |
+| 17 | `holding-details` | holding-details.spec.js | 1 |
+| 18 | `my-profile-password-flow` | my-profile-info-add-password-change-login-flow.spec.js | 1 |
+| | **Total** | | **56** |
 
 ---
 
@@ -717,6 +719,54 @@ npm.cmd run referral-flow
 ```
 
 Script: `tests/referral-rewards-flow.spec.js` · Cases: 1 · Checkpoints: **3** (conditional)
+
+---
+
+### 10b. Checkout Referral Code Flow (5% both accounts)
+
+Creates **two fresh Mail.tm accounts**. Referrer captures referral code → buyer
+applies it on Cloud 9 checkout → pays → both Referral Rewards pages must show
+**~5% cashback** of the purchase. Separate npm scripts for ShurjoPay vs bKash.
+
+**ShurjoPay:**
+
+```powershell
+Set-Location 'E:\Test'
+
+$env:AUNGSHA_PHONE='01929918378'
+$env:SHURJOPAY_PIN='1234'
+$env:SIGNUP_PASSWORD='Test@12345678'
+$env:SLOW_MO='400'
+
+npm.cmd run checkout-referral-shurjopay
+```
+
+**bKash:**
+
+```powershell
+Set-Location 'E:\Test'
+
+$env:AUNGSHA_PHONE='01929918378'
+$env:BKASH_SANDBOX_PHONE='01929918378'
+$env:BKASH_SANDBOX_OTP='123456'
+$env:BKASH_SANDBOX_PIN='12121'
+$env:SIGNUP_PASSWORD='Test@12345678'
+$env:SLOW_MO='400'
+
+npm.cmd run checkout-referral-bkash
+```
+
+Script: `tests/checkout-referral-flow.spec.js` · Cases: **2** · Checkpoints: **7** per payment method
+
+```
+✅ 1. Referrer account created
+✅ 2. Referral code captured
+✅ 3. Buyer account created
+✅ 4. Buyer referral baseline captured
+✅ 5. Checkout + Referral Code applied + purchase
+✅ 6. Buyer 5% reward OK
+✅ 7. Referrer 5% commission OK
+```
 
 ---
 

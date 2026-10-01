@@ -16,6 +16,8 @@
     "marketplace-my-listing-flow": "playwright test tests/marketplace-my-listing-flow.spec.js --headed --reporter=list",
     "holding-details": "playwright test tests/holding-details.spec.js --headed",
     "referral-flow": "playwright test tests/referral-rewards-flow.spec.js --headed",
+    "checkout-referral-shurjopay": "playwright test tests/checkout-referral-flow.spec.js -g \"ShurjoPay\" --headed --reporter=list",
+    "checkout-referral-bkash": "playwright test tests/checkout-referral-flow.spec.js -g \"bKash\" --headed --reporter=list",
     "support-ticket-flow": "playwright test tests/customer-support-ticket-flow.spec.js --headed",
     "withdrawal-flow": "playwright test tests/withdrawal-flow.spec.js --headed",
     "fund-balance-suite": "playwright test tests/fund-balance-test-suite.spec.js --headed",

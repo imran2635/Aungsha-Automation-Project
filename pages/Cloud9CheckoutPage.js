@@ -56,6 +56,67 @@ class Cloud9CheckoutPage extends BasePage {
     }
   }
 
+  /** Checkout "Referral Code" field + Apply (not Promo Code). */
+  async applyReferralCode(code) {
+    const referralInput = this.page
+      .getByPlaceholder(/enter referral code/i)
+      .or(this.page.getByLabel(/^referral code$/i))
+      .first();
+    await expect(referralInput, 'Referral Code input on checkout').toBeVisible({ timeout: 15_000 });
+    await referralInput.click();
+    await referralInput.fill('');
+    await referralInput.fill(String(code));
+    await expect(referralInput).toHaveValue(String(code));
+
+    // Innermost row that owns the referral input + its Apply (avoid Promo Apply).
+    const applyBtn = this.page
+      .locator('div')
+      .filter({ has: this.page.getByPlaceholder(/enter referral code/i) })
+      .filter({ has: this.page.getByRole('button', { name: /^apply$/i }) })
+      .last()
+      .getByRole('button', { name: /^apply$/i })
+      .or(
+        referralInput.locator('xpath=following::button[normalize-space()="Apply" or normalize-space()="APPLY"][1]'),
+      )
+      .first();
+    await expect(applyBtn).toBeVisible({ timeout: 10_000 });
+    await applyBtn.scrollIntoViewIfNeeded().catch(() => {});
+    await applyBtn.click({ force: true });
+
+    const errorToast = this.page
+      .getByText(/invalid.*referral|referral.*invalid|code not found|cannot use|already applied|expired/i)
+      .first();
+    const successHint = this.page
+      .getByText(/referral.*(applied|accepted|success)|code applied|discount applied|5\s*%|cashback/i)
+      .first();
+
+    await this.page.waitForTimeout(1_500);
+
+    if (await errorToast.isVisible().catch(() => false)) {
+      const msg = await errorToast.textContent();
+      throw new Error(`Referral code apply rejected: ${msg}`);
+    }
+
+    // Success UI varies — accept applied hint, disabled/cleared input, or value still held with no error.
+    const applied =
+      (await successHint.isVisible().catch(() => false))
+      || (await referralInput.isDisabled().catch(() => false))
+      || (await referralInput.inputValue()) === String(code);
+
+    expect(applied, `Expected referral code "${code}" to apply on checkout`).toBeTruthy();
+  }
+
+  async payWithMethod(method = 'shurjopay') {
+    const normalized = String(method).toLowerCase();
+    if (normalized === 'bkash') {
+      await this.selectBkashPayment();
+      await this.completeBkashSandbox();
+      return;
+    }
+    await this.selectDigitalPayment();
+    await this.completeShurjoPay();
+  }
+
   async selectFundBalance() {
     const funds = this.page.getByRole('button', { name: /use funds balance/i }).first();
     await expect(funds).toBeVisible({ timeout: 15_000 });
