@@ -1,5 +1,15 @@
 const { defineConfig, devices } = require('@playwright/test');
 const os = require('node:os');
+const path = require('node:path');
+
+// Keep browsers outside Cursor sandbox temp cache so Chromium is not re-downloaded every session.
+const persistentBrowsersPath = path.join(__dirname, '.playwright-browsers');
+if (
+  !process.env.PLAYWRIGHT_BROWSERS_PATH
+  || /cursor-sandbox-cache|\\Temp\\|\/tmp\//i.test(process.env.PLAYWRIGHT_BROWSERS_PATH)
+) {
+  process.env.PLAYWRIGHT_BROWSERS_PATH = persistentBrowsersPath;
+}
 
 module.exports = defineConfig({
   testDir: './tests',

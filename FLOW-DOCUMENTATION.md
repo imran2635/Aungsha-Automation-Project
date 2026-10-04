@@ -51,9 +51,10 @@ npx.cmd playwright install chromium
 | 14 | `referral-flow` | referral-rewards-flow.spec.js | 1 |
 | 15 | `checkout-referral-shurjopay` | checkout-referral-flow.spec.js (ShurjoPay) | 1 |
 | 16 | `checkout-referral-bkash` | checkout-referral-flow.spec.js (bKash) | 1 |
-| 17 | `holding-details` | holding-details.spec.js | 1 |
-| 18 | `my-profile-password-flow` | my-profile-info-add-password-change-login-flow.spec.js | 1 |
-| | **Total** | | **56** |
+| 17 | `checkout-referral-three-payments` | checkout-referral-flow-three-payments-methods.spec.js | 20 |
+| 18 | `holding-details` | holding-details.spec.js | 1 |
+| 19 | `my-profile-password-flow` | my-profile-info-add-password-change-login-flow.spec.js | 1 |
+| | **Total** | | **76** |
 
 ---
 
@@ -772,7 +773,46 @@ Script: `tests/checkout-referral-flow.spec.js` · Cases: **2** · Checkpoints: *
 
 Note: Buyer **5%** is asserted on the **checkout page** after Apply (not Funds / Referral Rewards).
 Referrer **5%** is asserted on Referral Rewards after purchase.
-Downloads save under `downloads/`.---
+Downloads save under `downloads/`.
+
+---
+
+### 10c. Checkout Referral — Three Payments + Matrix (POSITIVE / NEGATIVE / BOUNDARY / ECPA)
+
+Full suite: ShurjoPay + bKash + Fund Balance happy paths, plus valid/invalid referral matrix.
+
+```powershell
+Set-Location 'E:\Test'
+
+$env:AUNGSHA_PHONE='01929918378'
+$env:SHURJOPAY_PIN='1234'
+$env:BKASH_SANDBOX_PHONE='01929918378'
+$env:BKASH_SANDBOX_OTP='123456'
+$env:BKASH_SANDBOX_PIN='12121'
+$env:SIGNUP_PASSWORD='Test@12345678'
+$env:SLOW_MO='400'
+
+# Full suite (~20 cases — mutates staging heavily)
+npm.cmd run checkout-referral-three-payments
+
+# Only POSITIVE (3 payment methods)
+npm.cmd run checkout-referral-three-payments:positive
+
+# SETUP + NEGATIVE + BOUNDARY + ECPA only
+npm.cmd run checkout-referral-three-payments:matrix
+```
+
+Script: `tests/checkout-referral-flow-three-payments-methods.spec.js` · Cases: **20**
+
+| Group | Cases | Coverage |
+|---|---:|---|
+| SETUP | 1 | Shared referrer code + buyer |
+| POSITIVE | 3 | Valid code + ShurjoPay / bKash / Fund Balance + 5% both + downloads |
+| NEGATIVE | 4 | Empty, invalid, own-code, UI present |
+| BOUNDARY | 6 | Length, spaces, special chars, case, trim |
+| ECPA | 6 | Valid/invalid classes + payment options |
+
+---
 
 ### 11. My Profile — Info Add + Password Change + Re-login
 

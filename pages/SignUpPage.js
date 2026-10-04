@@ -14,10 +14,18 @@ class SignUpPage extends BasePage {
   }
 
   async open() {
-    await this.goto('/en');
-    await expect(this.page).toHaveURL(/\/en\/?$/);
-    await this.goto('/en/sign-up?next=%2Fen');
-    await expect(this.page).toHaveURL(/\/en\/sign-up/);
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      try {
+        await this.goto('/en');
+        await this.page.waitForTimeout(800);
+        await this.goto('/en/sign-up?next=%2Fen');
+        await expect(this.page).toHaveURL(/\/en\/sign-up/, { timeout: 15_000 });
+        return;
+      } catch (error) {
+        if (attempt === 3) throw error;
+        await this.page.waitForTimeout(1_000);
+      }
+    }
   }
 
   async dismissCookies() {

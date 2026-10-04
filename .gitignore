@@ -4,4 +4,5 @@ test-results/
 allure-results/
 allure-report/
 downloads/
+.playwright-browsers/
 .env
