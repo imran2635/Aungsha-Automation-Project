@@ -46,6 +46,23 @@ class BasePage {
     await expect(accept).toBeHidden({ timeout: 3_000 }).catch(() => {});
     console.log('✅ We use cookies — Accept clicked: PASSED');
   }
+
+  /**
+   * Type like a user (best for Next.js server actions / React 19 forms).
+   * Avoids synthetic dispatchEvent — that can desync action payload vs visible value.
+   */
+  async fillReactControlledInput(locator, value) {
+    const text = String(value);
+    await locator.scrollIntoViewIfNeeded().catch(() => {});
+    await locator.click({ force: true });
+    const mod = process.platform === 'darwin' ? 'Meta' : 'Control';
+    await this.page.keyboard.press(`${mod}+A`);
+    await this.page.keyboard.press('Backspace');
+    await locator.pressSequentially(text, { delay: 55 });
+    await expect(locator).toHaveValue(text, { timeout: 5_000 });
+    await locator.press('Tab').catch(() => {});
+    await this.page.waitForTimeout(250);
+  }
 }
 
 module.exports = { BasePage };

@@ -725,9 +725,17 @@ Script: `tests/referral-rewards-flow.spec.js` · Cases: 1 · Checkpoints: **3** 
 
 ### 10b. Checkout Referral Code Flow (5% both accounts)
 
-Creates **two fresh Mail.tm accounts**. Referrer captures referral code → buyer
-applies it on Cloud 9 checkout → pays → both Referral Rewards pages must show
-**~5% cashback** of the purchase. Separate npm scripts for ShurjoPay vs bKash.
+Creates **two fresh Mail.tm accounts** (2 Chrome windows). Referrer captures
+referral code → buyer expands **Have a referral?** on Cloud 9 checkout → applies
+code → pays → both sides show **~5%** (buyer discount on checkout / purchase
+summary; referrer Pending list / cashback). Separate npm scripts for ShurjoPay vs bKash.
+
+**Apply locator (critical):** checkout has two referral submit buttons —
+`form="referralForm"` (legacy) and `form="referralCodeForm"` (correct). Automation
+must click `button[form="referralCodeForm"]`. Wrong button → staging
+`Something went wrong. Please try again.` with no discount. Page helper:
+`Cloud9CheckoutPage.applyReferralCode()` + `prepareCheckoutForReferral()`
+(phone → Continue Without Nominee → referral Apply).
 
 **ShurjoPay:**
 
@@ -757,22 +765,53 @@ $env:SLOW_MO='400'
 npm.cmd run checkout-referral-bkash
 ```
 
-Script: `tests/checkout-referral-flow.spec.js` · Cases: **2** · Checkpoints: **9** per payment method
+Optional (reuse existing referrer instead of Mail.tm referrer):
+
+```powershell
+$env:AUNGSHA_EMAIL='imran.bponi@gmail.com'
+$env:AUNGSHA_PASSWORD='12345678'
+# optional fixed code:
+# $env:CHECKOUT_REFERRAL_CODE='D5A0D3B4'
+```
+
+Script: `tests/checkout-referral-flow.spec.js` · Cases: **2** · Checkpoints: **9** per payment method  
+Pages: `Cloud9CheckoutPage.js`, `ReferralRewardsPage.js`, `SignUpPage.js`, `AuthPage.js`
+
+**Last green ShurjoPay terminal (2026-10-07):** `1 passed (2.1m)` · **9/9** checkpoints
 
 ```
+🪟 Two Chrome windows opened: Window-1=Referrer, Window-2=Buyer
 ✅ 1. Referrer account created (Window-1)
+   code=4763EDE2  baseline={"total":0,"successful":0,"cashback":0}
 ✅ 2. Referral code captured (Window-1)
 ✅ 3. Buyer account created (Window-2)
+   Cloud 9 details opened → Checkout opened
+   Referral Code applied (4763EDE2)
+   unit≈BDT 1045 → expected buyer 5% = BDT 52.25
 ✅ 4. Checkout opened + referral code applied (Window-2)
 ✅ 5. Buyer 5% reward verified on checkout (Window-2)
-✅ 6. Cloud 9 purchased (Window-2)
-✅ 7. Invoice downloaded (Window-2)
-✅ 8. Ownership Certificate downloaded (Window-2)
+   purchase summary Referral Discount ~52.25: OK
+✅ 6. Cloud 9 purchased via shurjopay (Window-2)
+✅ 7. Invoice downloaded (Window-2)     → downloads/receipt-*.pdf
+✅ 8. Ownership Certificate downloaded → downloads/certificate-*.pdf
 ✅ 9. Referrer 5% commission verified (Window-1)
+   proof via referrer-pending-list: Δ cashback=52.25, successful 0→1
+
+========== CHECKOUT REFERRAL SUMMARY ==========
+Passed : 9
+Failed : 0
+Total  : 9
+Payment: shurjopay
+Purchase: BDT 1045
+5% each : BDT 52.25
+===============================================
 ```
 
-Note: Buyer **5%** is asserted on the **checkout page** after Apply (not Funds / Referral Rewards).
-Referrer **5%** is asserted on Referral Rewards after purchase.
+UI success signals after Apply: `Referral discount (5%): - BDT 52.25`, Order Summary
+`Referral Discount (5%)`, Total Payable **৳992.75**, referrer note about reward.
+
+Note: Buyer **5%** is asserted on the **checkout page** after Apply (not Funds).
+Referrer **5%** is asserted on Referral Rewards (Pending / cashback) after purchase.
 Downloads save under `downloads/`.
 
 ---
